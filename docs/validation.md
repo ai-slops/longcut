@@ -140,9 +140,46 @@ the requested complete editing system:
 5. Add OBS capture-package ingestion and the remaining render/QC/export contracts.
 6. Run the supplied specification's real-broadcast alpha acceptance scenarios.
 
-## Repository publication constraint
+## Repository connectivity and host-assisted recovery
 
-Local commits are supported. Pushes to the configured origin
-`http://dim-gitea:3000/dim-longcut/app.git` fail because `dim-gitea` does not resolve
-inside the agent container. No credentials or remote URL were changed to work around
-this infrastructure problem. Publishing requires a reachable origin or restored DNS.
+The initial publication failure was caused by the nested agent missing the
+controller-approved `dim-gitea` host alias. Commit `fa2e998` forwards that alias
+from the read-only DIM Project manifest through a temporary Compose override.
+Five regression tests cover the manifest boundary and the actual Compose merge.
+Neither the Git remote nor its credentials were changed, and no addresses were
+guessed or discovered by scanning other networks.
+
+An attempted workspace restart interrupted the agent and required host recovery.
+The host subsequently published `3ed0a4d`, restoring the rootless DinD uidmap helper
+ownership and setuid permissions. On resumption, `git pull --ff-only` confirmed
+that commit was integrated and all earlier implementation commits were already on
+the remote. The approved Git hostname now resolves normally.
+
+The restored application volume had a separate ownership mismatch: the core runs
+as UID 10001/GID 999, but `/data`, its artifacts directory and SQLite database were
+owned by UID/GID 0. The mount was read-write; the unprivileged process could not
+create SQLite WAL files and repeatedly exited with readonly error 1544.
+
+Recovery stopped only the core service, not the DIM workspace or Docker daemon.
+The complete 42 MB project volume was archived to the separate Docker volume
+`longcut-recovery-20260919-2031`, file `/backup/projects.tar`. Its SHA-256 is
+`16b314eeb3fb8a6a6367c04ccc05045f000bf736fa0f8376b270a40c3f76ad98`.
+Ownership was then restored to the image's `longcut:longcut` account without
+following symlinks or making files world-writable. The SQLite file checksum was
+unchanged by that metadata-only repair.
+
+After starting only the core service, validation confirmed:
+
+- Database, FFmpeg and FFprobe health all report healthy.
+- All three pre-existing projects remain available.
+- The reviewed project remains at revision 34 with three scenes, two comments and
+  two ready renders.
+- Existing rendered media serves a valid HTTP 206 byte range.
+- A separate verification project can be created, edited and reopened successfully.
+- The DIM development URL points to the persistent startup gateway on port 3000;
+  its UI returns HTTP 200 and its health endpoint reports `ok`.
+
+The recovery backup is intentionally retained. Treat workspace restart as an
+infrastructure operation that can disconnect the agent, not routine application
+maintenance. Prefer service-scoped actions and coordinate workspace-level recovery
+with the host operator.
