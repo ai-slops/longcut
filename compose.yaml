@@ -1,0 +1,25 @@
+services:
+  core:
+    build:
+      context: .
+      target: runtime
+    image: longcut-core:local
+    restart: unless-stopped
+    ports:
+      - "${LONGCUT_CORE_BIND:-127.0.0.1}:${LONGCUT_CORE_PORT:-4000}:4000"
+    environment:
+      LONGCUT_BIND: 0.0.0.0:4000
+      LONGCUT_DATA: /data
+      RUST_LOG: info
+    volumes:
+      - projects:/data
+    init: true
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  projects:
+    name: longcut-projects

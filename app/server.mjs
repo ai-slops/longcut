@@ -8,7 +8,7 @@ const server = createGateway({
   webRoot: fileURLToPath(new URL("../apps/web/dist/", import.meta.url)),
 });
 server.requestTimeout = 30 * 60 * 1000;
-server.listen(port, "0.0.0.0", () => {
+server.listen(port, process.env.LONGCUT_GATEWAY_BIND ?? "127.0.0.1", () => {
   process.stdout.write(JSON.stringify({ event: "gateway.listening", port }) + "\n");
 });
 for (const signal of ["SIGTERM", "SIGINT"]) {
