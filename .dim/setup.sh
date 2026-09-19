@@ -1,6 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 
+compose_host_aliases="$(mktemp /tmp/dim-compose-host-aliases.XXXXXX)"
+trap 'rm -f "$compose_host_aliases"' EXIT HUP INT TERM
+sh .dim/host-aliases.sh > "$compose_host_aliases"
+
 git_name="$(dim-host-input builtin.git-author name)"
 git_email="$(dim-host-input builtin.git-author email)"
 
@@ -42,7 +46,7 @@ dim-controller-proxy ensure external-url \
   --socket-mode 0666
 
 docker compose \
-  --file .dim/docker-compose.yml up --detach --build agent
+  --file .dim/docker-compose.yml --file "$compose_host_aliases" up --detach --build agent
 docker compose \
-  --file .dim/docker-compose.yml exec --no-TTY agent \
+  --file .dim/docker-compose.yml --file "$compose_host_aliases" exec --no-TTY agent \
   chown -R "$(id -u):$(id -g)" /home/dim-agent
