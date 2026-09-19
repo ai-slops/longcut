@@ -10,4 +10,6 @@ target/
 *.log
 playwright-report/
 test-results/
+.playwright-mcp/
+artifacts/longcut-*.png
 .longcut-data/
