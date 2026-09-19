@@ -1,8 +1,19 @@
-import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
+import { createGateway } from "./gateway.mjs";
 
-const server = createServer((_request, response) => {
-  response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
-  response.end("hello from a single-repository DIM workspace\n");
+const port = Number(process.env.PORT ?? "3000");
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be between 1 and 65535");
+const server = createGateway({
+  backend: process.env.LONGCUT_BACKEND ?? "http://agent-dind:4000",
+  webRoot: fileURLToPath(new URL("../apps/web/dist/", import.meta.url)),
 });
-
-server.listen(3000, "0.0.0.0");
+server.requestTimeout = 30 * 60 * 1000;
+server.listen(port, "0.0.0.0", () => {
+  process.stdout.write(JSON.stringify({ event: "gateway.listening", port }) + "\n");
+});
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => {
+    server.close();
+    server.closeIdleConnections();
+  });
+}
