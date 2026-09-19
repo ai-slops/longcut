@@ -1,0 +1,10 @@
+.git
+.omo
+.codegraph
+.pnpm-store
+**/node_modules
+**/dist
+**/target
+.env*
+*.log
+test-results

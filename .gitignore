@@ -1,0 +1,13 @@
+.omo/
+.codegraph/
+.pnpm-store/
+node_modules/
+dist/
+target/
+.env
+.env.*
+!.env.example
+*.log
+playwright-report/
+test-results/
+.longcut-data/
