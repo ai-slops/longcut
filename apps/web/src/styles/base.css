@@ -1,0 +1,188 @@
+:root {
+  color-scheme: dark;
+  --ink-0: #0c0d0d;
+  --ink-1: #121313;
+  --ink-2: #191a19;
+  --ink-3: #222321;
+  --ink-4: #2b2c29;
+  --line-1: #30312e;
+  --line-2: #454641;
+  --paper-1: #f0f1e9;
+  --paper-2: #b8bab0;
+  --paper-3: #81837b;
+  --lime-1: #c7f36b;
+  --lime-2: #ddff92;
+  --lime-ink: #18200c;
+  --violet-1: #7968b2;
+  --violet-2: #9a87dc;
+  --violet-ink: #29223e;
+  --success: #7fd59a;
+  --warning: #e2bd68;
+  --error: #ef817d;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --s12: 48px;
+  --r1: 4px;
+  --r2: 8px;
+  --r3: 12px;
+  --motion-micro: 120ms;
+  --motion-standard: 220ms;
+  --type-micro: 11px;
+  --type-small: 12px;
+  --type-body: 14px;
+  font-family: "IBM Plex Sans", "Aptos", "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  color: var(--paper-1);
+  background: var(--ink-0);
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  min-block-size: 100%;
+  margin: 0;
+}
+body {
+  min-inline-size: 320px;
+  overflow-x: hidden;
+  background: var(--ink-0);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  color: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--lime-1);
+  outline-offset: 2px;
+}
+h1,
+h2,
+h3,
+p {
+  margin-block: 0;
+}
+h1 {
+  font-size: 32px;
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+h2 {
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+h3 {
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+p {
+  color: var(--paper-2);
+  line-height: 1.45;
+}
+code,
+kbd {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+a {
+  color: var(--paper-1);
+  text-decoration: none;
+}
+img,
+video {
+  max-inline-size: 100%;
+  display: block;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+legend,
+.eyebrow {
+  color: var(--paper-3);
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.3;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.cluster {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.muted {
+  color: var(--paper-3);
+  font-size: 12px;
+}
+.spin {
+  animation: spin 900ms linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    transition-duration: 0s;
+  }
+}
