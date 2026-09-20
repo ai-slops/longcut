@@ -13,6 +13,12 @@ services:
       RUST_LOG: info
       LONGCUT_CODEX_URL: http://codex:4100
       LONGCUT_CODEX_TOKEN_FILE: /run/codex-link/token
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-}"
+      OPENAI_RESPONSE_FORMAT: "${OPENAI_RESPONSE_FORMAT:-json_schema}"
+      OPENAI_MAX_OUTPUT_TOKENS: "${OPENAI_MAX_OUTPUT_TOKENS:-8192}"
+      OPENAI_TOKEN_PARAMETER: "${OPENAI_TOKEN_PARAMETER:-max_completion_tokens}"
     volumes:
       - projects:/data
       - codex-link:/run/codex-link:ro

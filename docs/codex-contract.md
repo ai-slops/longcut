@@ -3,8 +3,9 @@
 ## Provider and trust boundary
 
 Use the official OpenAI Codex CLI, pinned to `@openai/codex` 0.155.1, with
-ChatGPT account authentication. Do not accept API keys, custom OAuth clients,
-provider endpoints, or copied tokens through the editor. Subscription availability
+ChatGPT account authentication. The Codex path does not accept API keys, custom OAuth clients,
+provider endpoints, or copied tokens through the editor. A separate explicitly selected
+OpenAI-compatible API provider is defined below. Subscription availability
 and usage limits are controlled by OpenAI. Account authorization is user-driven.
 
 Codex is a proposal generator, never a direct project writer. A private sidecar
@@ -204,3 +205,58 @@ proposal and approval to establish the authenticated end-to-end claim.
 
 No workspace restart is required. Rebuild/recreate only application services and
 preserve all existing project and auth volumes.
+
+## Additional provider: OpenAI-compatible API
+
+The user explicitly requested this additional path after choosing not to authorize
+ChatGPT yet. Preserve Codex subscription authentication unchanged. Never automatically
+fall back from Codex to billable API calls.
+
+The core service, not the Codex sidecar, reads these server environment settings:
+
+- `OPENAI_API_KEY`: secret bearer credential, never serialized, logged or sent to Codex.
+- `OPENAI_BASE_URL`: default `https://api.openai.com/v1`; must be an HTTP(S) base URL
+  without embedded credentials, query or fragment. Append `/chat/completions`.
+- `OPENAI_MODEL`: required vision-capable model name supported by that endpoint.
+- `OPENAI_RESPONSE_FORMAT`: `json_schema` (default), `json_object`, or `none`.
+- `OPENAI_MAX_OUTPUT_TOKENS`: default 8192, bounded to 256..32768.
+- `OPENAI_TOKEN_PARAMETER`: `max_completion_tokens` (default) or `max_tokens` for
+  providers that implement the older parameter.
+
+Compose passes these explicitly to `core` from the ignored root `.env`; it never
+passes them to `codex`. Invalid or incomplete configuration disables only this
+provider, not manual editing or the subscription integration. Changes require
+recreating only the core application service, never a workspace restart.
+
+`GET /api/v1/ai/providers` returns:
+
+```text
+{providers: ProviderStatus[]}
+ProviderStatus {
+  id: "codex"|"openai-compatible", name: string, configured: boolean,
+  model: string|null, endpoint: string|null, detail: string|null
+}
+```
+
+The Codex entry describes the installed integration; login readiness still comes
+from `/codex/status`. The API entry reports configuration, not a successful vendor
+connection test. Its public endpoint must not contain credentials or query strings.
+
+Add `provider: "codex"|"openai-compatible"` to AiRequest and AiRun. Missing provider
+defaults to `codex` for already stored runs and existing callers. This selection is
+frozen with the run and displayed in its history. Browser code never submits keys,
+endpoint overrides or model overrides.
+
+For the API provider, send standard Chat Completions messages with text context and
+inline JPEG `image_url` parts. Do not send tools or execute returned tool calls.
+Reject tool-call responses, oversized responses, non-JSON output and invalid proposals.
+Parse into the same closed AiProposal and run the exact same scope/evidence/revision/
+lock checks and atomic ChangeSet publication as Codex. Cancellation drops the HTTP
+request and prevents publication; provider-side billing cancellation is best effort.
+Keep errors actionable without exposing credentials or raw vendor responses.
+
+The Agent workspace exposes an explicit provider selector. For the API provider,
+show server-configured model/endpoint and `.env` instructions instead of a ChatGPT
+login form. Consent refers to the selected provider, and the UI states that API
+billing is separate from ChatGPT subscription usage. Both credential paths remain
+unverified against a real model until the user supplies authorization or an API key.
