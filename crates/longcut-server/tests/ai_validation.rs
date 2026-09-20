@@ -1,5 +1,8 @@
 use longcut_server::{
-    ai::{AiOperation, AiProposal, AiRequest, AiScope, build_prompt, validate_proposal},
+    ai::{
+        AiOperation, AiProposal, AiRequest, AiScope, build_prompt, proposal_schema,
+        validate_proposal,
+    },
     model::{Camera, MediaStatus, Project, Scene, Source, SourceRole},
 };
 
@@ -52,6 +55,7 @@ fn scene_prompt_contains_only_selected_and_permitted_camera_metadata() {
     // Given
     let project = scene_project();
     let request = AiRequest {
+        provider: longcut_server::ai::AiProvider::Codex,
         base_revision: "0".into(),
         instruction: "Use an appropriate angle".into(),
         consent: true,
@@ -67,6 +71,12 @@ fn scene_prompt_contains_only_selected_and_permitted_camera_metadata() {
         .map(|(json, _)| json)
         .expect("structured metadata block");
     let context: serde_json::Value = serde_json::from_str(metadata).expect("parse context");
+    let schema = prompt
+        .split_once("<output_schema>\n")
+        .and_then(|(_, suffix)| suffix.split_once("\n</output_schema>"))
+        .map(|(json, _)| json)
+        .expect("output schema block");
+    let schema: serde_json::Value = serde_json::from_str(schema).expect("parse output schema");
     let sources = context["sources"].as_array().expect("source metadata");
     let ids = sources
         .iter()
@@ -74,6 +84,7 @@ fn scene_prompt_contains_only_selected_and_permitted_camera_metadata() {
         .collect::<Vec<_>>();
     // Then
     assert_eq!(ids, ["selected", "existing-camera", "available-camera"]);
+    assert_eq!(schema, proposal_schema());
     assert!(sources.iter().all(|source| source["role"].is_string()));
     assert!(!ids.contains(&"unrelated"));
 }

@@ -18,6 +18,7 @@ pub fn router(state: AppState) -> Router {
             "/api/v1",
             Router::new()
                 .route("/health", get(health))
+                .route("/ai/providers", get(crate::ai::http::providers))
                 .route("/codex/status", get(crate::ai::http::status))
                 .route("/codex/login", post(crate::ai::http::login))
                 .route("/codex/login/cancel", post(crate::ai::http::cancel_login))

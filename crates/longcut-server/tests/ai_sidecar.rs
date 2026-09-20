@@ -8,10 +8,11 @@ use axum::{
 use longcut_server::{
     AppState,
     ai::{
-        AccountAction, AiProposal, CodexAccountState, CodexAuthMode, CodexClient, CodexStatus,
-        EvidenceSample,
+        AccountAction, AiProposal, AiProvider, AiRequest, AiScope, CodexAccountState,
+        CodexAuthMode, CodexClient, CodexStatus, EvidenceSample,
     },
     error::AppResult,
+    model::{CreateProject, MediaStatus, Source, SourceRole},
 };
 use tempfile::TempDir;
 use tower::ServiceExt;
@@ -44,8 +45,90 @@ impl CodexClient for FakeCodex {
     }
 
     async fn cancel(&self, _id: &str) -> AppResult<()> {
-        Ok(())
+        panic!("OpenAI-compatible cancellation must not contact Codex")
     }
+}
+
+#[tokio::test]
+async fn compatible_provider_cancellation_only_drops_its_local_work() {
+    // Given
+    let data = TempDir::new().expect("create temp directory");
+    let state = AppState::initialize_with_codex(data.path(), Arc::new(FakeCodex))
+        .await
+        .expect("initialize state");
+    let project = state
+        .store
+        .create(CreateProject {
+            title: "Cancellation".into(),
+            frame_rate: 30,
+        })
+        .await
+        .expect("project");
+    let project = state
+        .store
+        .add_source(
+            &project.id,
+            Source {
+                id: "source".into(),
+                name: "source.mp4".into(),
+                role: SourceRole::Program,
+                duration_frames: "120".into(),
+                width: 1280,
+                height: 720,
+                has_audio: false,
+                media_url: "/api/v1/media/source.mp4".into(),
+                proxy_url: None,
+                thumbnail_url: None,
+                waveform: vec![],
+                status: MediaStatus::Ready,
+                error: None,
+            },
+        )
+        .await
+        .expect("source");
+    let run = state
+        .store
+        .enqueue_ai(
+            &project.id,
+            AiRequest {
+                provider: AiProvider::OpenaiCompatible,
+                base_revision: project.revision,
+                instruction: "Cancel this".into(),
+                consent: true,
+                scope: AiScope::Source {
+                    source_id: "source".into(),
+                    start_frame: "0".into(),
+                    end_frame: "120".into(),
+                },
+            },
+        )
+        .await
+        .expect("enqueue API run");
+    // When
+    let response = longcut_server::app(state.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/v1/projects/{}/ai/runs/{}/cancel",
+                    project.id, run.id
+                ))
+                .body(Body::empty())
+                .expect("build request"),
+        )
+        .await
+        .expect("cancel request");
+    // Then
+    assert!(response.status().is_success());
+    assert_eq!(
+        state
+            .store
+            .ai_run(&project.id, &run.id)
+            .await
+            .expect("cancelled run")
+            .status,
+        longcut_server::ai::AiRunStatus::Cancelled
+    );
 }
 
 #[tokio::test]

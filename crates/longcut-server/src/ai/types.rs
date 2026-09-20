@@ -2,9 +2,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::Camera;
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AiProvider {
+    #[default]
+    Codex,
+    OpenaiCompatible,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AiRequest {
+    #[serde(default)]
+    pub provider: AiProvider,
     pub base_revision: String,
     pub instruction: String,
     pub consent: bool,
@@ -48,6 +58,8 @@ pub struct AiRun {
     pub project_id: String,
     pub base_revision: String,
     pub instruction: String,
+    #[serde(default)]
+    pub provider: AiProvider,
     pub scope: AiScope,
     pub status: AiRunStatus,
     pub created_at: String,
@@ -57,6 +69,21 @@ pub struct AiRun {
     pub warnings: Vec<String>,
     pub sample_count: u8,
     pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ProvidersResponse {
+    pub providers: Vec<ProviderStatus>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ProviderStatus {
+    pub id: AiProvider,
+    pub name: String,
+    pub configured: bool,
+    pub model: Option<String>,
+    pub endpoint: Option<String>,
+    pub detail: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

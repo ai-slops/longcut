@@ -3,6 +3,7 @@ mod context;
 mod conversion;
 pub mod http;
 mod job;
+mod openai;
 mod prompt;
 mod request_validation;
 pub mod sampling;
@@ -12,6 +13,7 @@ mod validation;
 
 pub use client::{AccountAction, CodexClient, HttpCodexClient};
 pub(crate) use conversion::into_operations;
+pub use openai::OpenAiProvider;
 pub use prompt::build_prompt;
 pub use request_validation::validate_request;
 pub use schema::proposal_schema;

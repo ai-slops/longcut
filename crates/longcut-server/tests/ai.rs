@@ -1,6 +1,6 @@
 use longcut_server::{
     AppState,
-    ai::{AiProposal, AiRequest, AiRunStatus, AiScope},
+    ai::{AiProposal, AiProvider, AiRequest, AiRunStatus, AiScope},
     model::{Command, CommandRequest, CreateProject, MediaStatus, Source, SourceRole},
 };
 use tempfile::TempDir;
@@ -43,6 +43,7 @@ async fn project_with_source() -> (TempDir, AppState, longcut_server::model::Pro
 
 fn source_request(revision: &str) -> AiRequest {
     AiRequest {
+        provider: AiProvider::Codex,
         base_revision: revision.into(),
         instruction: "Create a concise opening sequence".into(),
         consent: true,
@@ -195,4 +196,36 @@ async fn invalid_scope_is_rejected_before_a_run_is_persisted() {
             .expect("list runs")
             .is_empty()
     );
+}
+
+#[test]
+fn missing_provider_defaults_to_codex_for_stored_requests_and_runs() {
+    // Given
+    let request = serde_json::json!({
+        "base_revision": "0",
+        "instruction": "Keep compatibility",
+        "consent": true,
+        "scope": {"type": "scenes", "scene_ids": ["scene"]}
+    });
+    let run = serde_json::json!({
+        "id": "run",
+        "project_id": "project",
+        "base_revision": "0",
+        "instruction": "Keep compatibility",
+        "scope": {"type": "scenes", "scene_ids": ["scene"]},
+        "status": "ready",
+        "created_at": "2026-09-20T00:00:00Z",
+        "updated_at": "2026-09-20T00:00:00Z",
+        "change_set_id": null,
+        "summary": null,
+        "warnings": [],
+        "sample_count": 0,
+        "error": null
+    });
+    // When
+    let request: AiRequest = serde_json::from_value(request).expect("legacy request");
+    let run: longcut_server::ai::AiRun = serde_json::from_value(run).expect("legacy run");
+    // Then
+    assert_eq!(request.provider, AiProvider::Codex);
+    assert_eq!(run.provider, AiProvider::Codex);
 }

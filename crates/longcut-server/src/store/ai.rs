@@ -32,6 +32,7 @@ impl Store {
             project_id: project_id.into(),
             base_revision: request.base_revision.clone(),
             instruction: request.instruction.clone(),
+            provider: request.provider,
             scope: request.scope.clone(),
             status: AiRunStatus::Queued,
             created_at: now.clone(),

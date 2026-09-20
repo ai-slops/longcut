@@ -6,7 +6,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{AppState, error::AppError};
 
 use super::{
-    AiRun, AiRunStatus, build_prompt, proposal_schema, sampling, validate_proposal,
+    AiProvider, AiRun, AiRunStatus, build_prompt, proposal_schema, sampling, validate_proposal,
     validate_request,
 };
 
@@ -20,7 +20,9 @@ pub async fn execute(state: AppState, run: AiRun, cancellation: CancellationToke
         Ok(Ok(())) => None,
         Ok(Err(error)) => Some(error.to_string()),
         Err(_) => {
-            let _ = state.codex.cancel(&run.id).await;
+            if run.provider == AiProvider::Codex {
+                let _ = state.codex.cancel(&run.id).await;
+            }
             Some("AI run timed out after ten minutes".into())
         }
     };
@@ -68,12 +70,28 @@ async fn execute_inner(
         .transition_ai(&run.id, AiRunStatus::Generating, sample_count)
         .await?;
     let prompt = build_prompt(&project, &request, &samples)?;
+    let generation = async {
+        match request.provider {
+            AiProvider::Codex => {
+                state
+                    .codex
+                    .generate(&run.id, &prompt, proposal_schema(), &samples)
+                    .await
+            }
+            AiProvider::OpenaiCompatible => {
+                state
+                    .openai
+                    .generate(&prompt, proposal_schema(), &samples)
+                    .await
+            }
+        }
+    };
     let proposal = tokio::select! {
         biased;
         () = cancellation.cancelled() => {
             return Err(crate::error::AppError::Conflict("AI run was cancelled".into()));
         }
-        proposal = state.codex.generate(&run.id, &prompt, proposal_schema(), &samples) => proposal?,
+        proposal = generation => proposal?,
     };
     validate_proposal(&project, &request.scope, &samples, &proposal)?;
     state.store.publish_ai(&run.id, proposal).await?;
@@ -92,8 +110,8 @@ mod tests {
     use crate::{
         AppState,
         ai::{
-            AccountAction, AiProposal, AiRequest, AiRunStatus, AiScope, CodexClient, CodexStatus,
-            EvidenceSample,
+            AccountAction, AiProposal, AiProvider, AiRequest, AiRunStatus, AiScope, CodexClient,
+            CodexStatus, EvidenceSample,
         },
         error::AppResult,
         model::{Command, CommandRequest, CreateProject, MediaStatus, Source, SourceRole},
@@ -168,6 +186,7 @@ mod tests {
             .enqueue_ai(
                 &project.id,
                 AiRequest {
+                    provider: AiProvider::Codex,
                     base_revision: project.revision.clone(),
                     instruction: "Inspect selected frames".into(),
                     consent: true,

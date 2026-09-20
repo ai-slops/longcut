@@ -4,8 +4,30 @@ use axum::{
     http::StatusCode,
 };
 
-use super::{AccountAction, AiRequest, AiRun, CodexStatus, job};
-use crate::{AppState, error::AppResult};
+use super::{
+    AccountAction, AiProvider, AiRequest, AiRun, CodexStatus, ProviderStatus, ProvidersResponse,
+    job,
+};
+use crate::{
+    AppState,
+    error::{AppError, AppResult},
+};
+
+pub async fn providers(State(state): State<AppState>) -> Json<ProvidersResponse> {
+    Json(ProvidersResponse {
+        providers: vec![
+            ProviderStatus {
+                id: AiProvider::Codex,
+                name: "Codex (ChatGPT subscription)".into(),
+                configured: true,
+                model: None,
+                endpoint: None,
+                detail: Some("Connection readiness is available from /api/v1/codex/status".into()),
+            },
+            state.openai.status().clone(),
+        ],
+    })
+}
 
 pub async fn status(State(state): State<AppState>) -> AppResult<Json<CodexStatus>> {
     Ok(Json(state.codex.status().await?))
@@ -36,6 +58,11 @@ pub async fn create_run(
     Path(project_id): Path<String>,
     Json(request): Json<AiRequest>,
 ) -> AppResult<(StatusCode, Json<AiRun>)> {
+    if request.provider == AiProvider::OpenaiCompatible && !state.openai.configured() {
+        return Err(AppError::Conflict(
+            "OpenAI-compatible provider is not configured on the server".into(),
+        ));
+    }
     let run = state.store.enqueue_ai(&project_id, request).await?;
     let cancellation = state.register_ai_work(&run.id).await;
     let worker_state = state.clone();
@@ -50,7 +77,9 @@ pub async fn cancel_run(
 ) -> AppResult<Json<AiRun>> {
     let run = state.store.cancel_ai(&project_id, &run_id).await?;
     state.cancel_ai_work(&run_id).await;
-    if let Err(error) = state.codex.cancel(&run_id).await {
+    if run.provider == AiProvider::Codex
+        && let Err(error) = state.codex.cancel(&run_id).await
+    {
         tracing::warn!(run_id, error = ?error, "ai.sidecar_cancel_failed");
     }
     Ok(Json(run))
