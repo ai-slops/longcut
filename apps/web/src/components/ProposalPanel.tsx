@@ -1,5 +1,6 @@
 import { Check, X } from "lucide-react"
 import { type FormEvent, useState } from "react"
+import { describeOperation } from "../ai-helpers"
 import type { Command, Operation, Project } from "../domain"
 import { useDraft } from "../useDraft"
 import { Badge, Button, Field, Panel, TextArea } from "./Ui"
@@ -186,8 +187,9 @@ export function ProposalPanel({ project, busy, onCommand }: Props) {
                           }))
                         }
                       />
-                      <span>
-                        {operation.type.replace("_", " ")}: {operation.rationale}
+                      <span className="operation-copy">
+                        <strong>{describeOperation(operation, project.frame_rate)}</strong>
+                        <small>{operation.rationale}</small>
                       </span>
                     </label>
                   </li>

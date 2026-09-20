@@ -31,11 +31,15 @@
   --r1: 4px;
   --r2: 8px;
   --r3: 12px;
+  --agent-rail: 320px;
+  --agent-content: 760px;
   --motion-micro: 120ms;
   --motion-standard: 220ms;
   --type-micro: 11px;
   --type-small: 12px;
   --type-body: 14px;
+  --type-h3: 15px;
+  --tracking-wide: 0.12em;
   font-family: "IBM Plex Sans", "Aptos", "Helvetica Neue", sans-serif;
   font-size: 14px;
   color: var(--paper-1);

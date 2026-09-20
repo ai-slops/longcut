@@ -9,6 +9,7 @@ import "./styles/base.css"
 import "./styles/layout.css"
 import "./styles/components.css"
 import "./styles/responsive.css"
+import "./styles/agent.css"
 
 if (import.meta.env.DEV && import.meta.env.VITE_DISABLE_REACT_DEVTOOLS !== "1") {
   void import("react-grab")

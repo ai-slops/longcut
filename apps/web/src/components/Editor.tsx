@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import type { Command, Project, Source } from "../domain"
 import { programDuration, sceneDuration, sceneProgramStart } from "../timeline"
 import { useEditorShortcuts } from "../useEditorShortcuts"
+import { AgentPanel } from "./AgentPanel"
 import { DeliverablesPanel } from "./DeliverablesPanel"
 import { Inspector } from "./Inspector"
 import { MediaFrame } from "./MediaFrame"
@@ -14,7 +15,7 @@ import { StoryPanel } from "./StoryPanel"
 import { Timeline } from "./Timeline"
 import { ErrorBar } from "./Ui"
 
-const tabs = ["Sources", "Story", "Edit", "Review", "Deliverables"] as const
+const tabs = ["Sources", "Story", "Edit", "Agent", "Review", "Deliverables"] as const
 type Tab = (typeof tabs)[number]
 
 type EditorProps = {
@@ -24,6 +25,7 @@ type EditorProps = {
   readonly onBack: () => void
   readonly onClearError: () => void
   readonly onCommand: (command: Command) => Promise<boolean>
+  readonly onRefreshProject: () => Promise<void>
   readonly onImport: (file: File, role: Source["role"]) => Promise<void>
   readonly onDemo: () => Promise<void>
   readonly onRender: (kind: "preview" | "final") => Promise<void>
@@ -36,6 +38,7 @@ export function Editor({
   onBack,
   onClearError,
   onCommand,
+  onRefreshProject,
   onImport,
   onDemo,
   onRender,
@@ -139,6 +142,13 @@ export function Editor({
       </header>
       {error ? <ErrorBar message={error} onDismiss={onClearError} /> : null}
       {tab === "Story" ? <StoryPanel project={project} busy={busy} onCommand={onCommand} /> : null}
+      {tab === "Agent" ? (
+        <AgentPanel
+          project={project}
+          onRefreshProject={onRefreshProject}
+          onReview={() => setTab("Review")}
+        />
+      ) : null}
       {tab === "Review" ? (
         <ReviewPanel
           project={project}

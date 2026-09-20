@@ -59,6 +59,22 @@ function Application() {
     return () => window.clearInterval(id)
   }, [project, report])
 
+  const refreshOpenProject = useCallback(async (): Promise<void> => {
+    if (!project) return
+    try {
+      const incoming = await api.getProject(project.id)
+      setProject((current) =>
+        current &&
+        current.id === incoming.id &&
+        Number(current.revision) > Number(incoming.revision)
+          ? current
+          : incoming,
+      )
+    } catch (reason) {
+      report(reason)
+    }
+  }, [project, report])
+
   async function withBusy(operation: () => Promise<Project>): Promise<boolean> {
     setBusy(true)
     setError(null)
@@ -107,6 +123,7 @@ function Application() {
         void refreshProjects()
       }}
       onCommand={(command: Command) => withBusy(() => api.command(project, command))}
+      onRefreshProject={refreshOpenProject}
       onImport={async (file, role) => {
         void (await withBusy(() => api.importMedia(project, file, role)))
       }}

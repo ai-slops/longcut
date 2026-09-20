@@ -61,9 +61,9 @@ Frame counts, revisions, dimensions, and timecodes use the mono family. Visible 
 
 Base unit is 4px. Tokens: `--s1` 4px, `--s2` 8px, `--s3` 12px, `--s4` 16px, `--s5` 20px, `--s6` 24px, `--s8` 32px, `--s10` 40px, `--s12` 48px.
 
-Editor shell: 100dvh bounded grid with fixed 52px top bar, fluid workspace, and timeline region. The workspace owns scroll; panel internals only scroll when their job is explicit. Wide layout uses a 228px source rail, fluid monitor/story area, and 292px inspector. Below 1080px the inspector becomes an in-flow lower panel. Below 760px all workspaces form a readable single column; navigation and timeline toolbars horizontally scroll rather than crushing labels. No primary content forces viewport horizontal scrolling.
+Editor shell: 100dvh bounded grid with fixed 52px top bar, fluid workspace, and timeline region. The workspace owns scroll; panel internals only scroll when their job is explicit. Wide layout uses a 228px source rail, fluid monitor/story area, and 292px inspector. The Agent workspace uses a 320px connection/run rail and a fluid request surface. Below 1080px the inspector becomes an in-flow lower panel. Below 760px all workspaces form a readable single column; navigation and timeline toolbars horizontally scroll rather than crushing labels. No primary content forces viewport horizontal scrolling.
 
-Geometry tokens: `--r1` 4px, `--r2` 8px, `--r3` 12px. Controls use `--r1`; panels and media frames use `--r2`; home cards use `--r3`.
+Geometry tokens: `--r1` 4px, `--r2` 8px, `--r3` 12px, `--agent-rail` 320px, `--agent-content` 760px. Controls use `--r1`; panels and media frames use `--r2`; home cards use `--r3`. The Agent request keeps a readable maximum measure while its rail remains compact.
 
 ## 5. Components
 
@@ -109,7 +109,7 @@ frame-synchronized A/B playback.
 - **Motion**: state transitions only; timeline geometry does not animate while scrubbing.
 
 ### TabBar
-- **Structure**: nav list and buttons for Sources, Story, Edit, Review, Deliverables.
+- **Structure**: nav list and buttons for Sources, Story, Edit, Agent, Review, Deliverables.
 - **States**: active uses lime underline and primary text; hover/focus are distinct.
 - **Layout**: cluster/reel; narrow widths scroll inline with keyboard access.
 
@@ -117,6 +117,21 @@ frame-synchronized A/B playback.
 - **Structure**: heading, clear body, grouped fields, cancel/confirm footer.
 - **States**: validation and API errors remain contextual.
 - **Accessibility**: native dialog semantics where used, focus visible, Escape closes unless a submission is active.
+
+### AgentConnection
+- **Structure**: literal Codex installation, version, authentication mode, and device-flow state; official authorization link and public one-time code only.
+- **States**: checking, unavailable, logged out, device login pending, ChatGPT ready, busy, unsupported API authentication, and error.
+- **Trust**: never renders credential, token, API-key, provider, or custom-endpoint inputs. Pending login can be cancelled and connected sessions can be logged out.
+
+### AgentRequest
+- **Structure**: source/scenes segmented scope, bounded source interval or unlocked scene checklist, exact context disclosure, instruction, consent, and primary request action.
+- **States**: usable with an empty timeline when a ready source exists; empty-source and empty-scene guidance; validation is inline and submission never clears a draft unless it succeeds or the user explicitly resets.
+- **Trust**: states that the first release uses supplied metadata and at most 12 sampled visual frames, with no ASR, audio understanding, or semantic review.
+
+### AiRunList
+- **Structure**: newest-first run records with literal status, frozen revision, scope, sample count, summary, warnings, errors, cancel/review/start-over actions.
+- **States**: queued, sampling, generating, ready, error, cancelled, and stale. Only active states poll. A ready proposal links into the existing partial-approval Review workspace.
+- **Truthfulness**: no provider/model label, percentage, fabricated stage, or production mock fallback is displayed.
 
 ### Primitive Showcase
 The `/showcase` query route renders every primitive in default, selected, disabled, empty, processing, and error states. It shares production CSS and is the implementation harness for mobile/tablet/desktop checks.
