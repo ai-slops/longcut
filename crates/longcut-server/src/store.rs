@@ -12,6 +12,8 @@ use crate::{
     model::*,
 };
 
+mod ai;
+mod ai_publication;
 mod jobs;
 
 #[derive(Clone)]
@@ -31,7 +33,7 @@ impl Store {
             .max_connections(1)
             .connect_with(options)
             .await?;
-        sqlx::query("CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY, state TEXT NOT NULL, history TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS commands(project_id TEXT NOT NULL, command_id TEXT NOT NULL, request TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(project_id, command_id)); CREATE TABLE IF NOT EXISTS render_jobs(id TEXT PRIMARY KEY, project_id TEXT NOT NULL, snapshot TEXT NOT NULL, status TEXT NOT NULL);")
+        sqlx::query("CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY, state TEXT NOT NULL, history TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS commands(project_id TEXT NOT NULL, command_id TEXT NOT NULL, request TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(project_id, command_id)); CREATE TABLE IF NOT EXISTS render_jobs(id TEXT PRIMARY KEY, project_id TEXT NOT NULL, snapshot TEXT NOT NULL, status TEXT NOT NULL); CREATE TABLE IF NOT EXISTS agent_runs(id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run TEXT NOT NULL, request TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);")
             .execute(&pool).await?;
         let store = Self { pool };
         store.recover_interrupted().await?;
@@ -92,6 +94,7 @@ impl Store {
         sqlx::query("UPDATE render_jobs SET status='error' WHERE status IN ('queued','running')")
             .execute(&self.pool)
             .await?;
+        self.recover_ai_runs().await?;
         Ok(())
     }
 

@@ -18,9 +18,21 @@ pub fn router(state: AppState) -> Router {
             "/api/v1",
             Router::new()
                 .route("/health", get(health))
+                .route("/codex/status", get(crate::ai::http::status))
+                .route("/codex/login", post(crate::ai::http::login))
+                .route("/codex/login/cancel", post(crate::ai::http::cancel_login))
+                .route("/codex/logout", post(crate::ai::http::logout))
                 .route("/projects", get(list_projects).post(create_project))
                 .route("/projects/{id}", get(get_project))
                 .route("/projects/{id}/commands", post(command))
+                .route(
+                    "/projects/{id}/ai/runs",
+                    get(crate::ai::http::list_runs).post(crate::ai::http::create_run),
+                )
+                .route(
+                    "/projects/{id}/ai/runs/{run_id}/cancel",
+                    post(crate::ai::http::cancel_run),
+                )
                 .route(
                     "/projects/{id}/imports",
                     post(crate::media_http::import).layer(DefaultBodyLimit::disable()),
