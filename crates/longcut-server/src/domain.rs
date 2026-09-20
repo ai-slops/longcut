@@ -1,5 +1,6 @@
 mod review;
 mod scene;
+mod scene_proposal;
 
 use crate::{
     error::{AppError, AppResult},

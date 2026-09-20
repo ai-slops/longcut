@@ -1,10 +1,13 @@
+mod operations;
+
 use std::collections::HashSet;
 
-use super::scene;
 use crate::{
     error::{AppError, AppResult},
     model::*,
 };
+
+use super::scene;
 
 pub(super) fn create_feedback(
     project: &mut Project,
@@ -52,17 +55,25 @@ pub(super) fn create_change_set(
     operations: Vec<Operation>,
     evidence: Vec<String>,
 ) -> AppResult<()> {
-    if operations.is_empty() {
-        return Err(AppError::Invalid("change set requires operations".into()));
+    if operations.is_empty() || operations.len() > 24 {
+        return Err(AppError::Invalid(
+            "change set requires between 1 and 24 operations".into(),
+        ));
     }
-    let mut ids = HashSet::new();
+    let mut operation_ids = HashSet::new();
+    let mut properties = HashSet::new();
     let mut preconditions = Vec::with_capacity(operations.len());
     for operation in &operations {
-        if !ids.insert(&operation.id) {
-            return Err(AppError::Invalid("duplicate operation id".into()));
+        if operation.id.is_empty() || !operation_ids.insert(&operation.id) {
+            return Err(AppError::Invalid("duplicate or empty operation id".into()));
         }
-        validate_operation(project, operation)?;
-        preconditions.push(capture_precondition(project, operation)?);
+        operations::reserve_properties(operation, &mut properties)?;
+        operations::validate_shape(operation)?;
+        preconditions.push(operations::capture_precondition(project, operation)?);
+    }
+    let mut candidate = project.clone();
+    for operation in &operations {
+        operations::apply(&mut candidate, operation)?;
     }
     project.change_sets.push(ChangeSet {
         id: uuid::Uuid::new_v4().to_string(),
@@ -83,11 +94,11 @@ pub(super) fn apply_change_set(
     id: &str,
     requested: &[String],
 ) -> AppResult<()> {
-    if requested.is_empty() {
-        return Err(AppError::Invalid("operation_ids is required".into()));
-    }
-    if requested.iter().collect::<HashSet<_>>().len() != requested.len() {
-        return Err(AppError::Invalid("duplicate operation id".into()));
+    let requested_ids = requested.iter().collect::<HashSet<_>>();
+    if requested.is_empty() || requested_ids.len() != requested.len() {
+        return Err(AppError::Invalid(
+            "operation_ids must be non-empty and unique".into(),
+        ));
     }
     let change_set = project
         .change_sets
@@ -97,52 +108,39 @@ pub(super) fn apply_change_set(
     if change_set.status == ChangeSetStatus::Rejected {
         return Err(AppError::Invalid("change set rejected".into()));
     }
-    let mut selected = Vec::new();
     for operation_id in requested {
         if change_set.applied_operation_ids.contains(operation_id) {
             return Err(AppError::Invalid("operation already applied".into()));
         }
-        let operation = change_set
+        if !change_set
             .operations
             .iter()
-            .find(|item| &item.id == operation_id)
-            .ok_or(AppError::NotFound)?
-            .clone();
-        let precondition = change_set
-            .preconditions
-            .iter()
-            .find(|item| item.operation_id() == operation_id)
-            .ok_or_else(|| AppError::Conflict("operation has no captured precondition".into()))?
-            .clone();
-        selected.push((operation, precondition));
+            .any(|operation| &operation.id == operation_id)
+        {
+            return Err(AppError::NotFound);
+        }
     }
-    for (operation, precondition) in &selected {
-        validate_precondition(project, precondition)?;
-        validate_operation(project, operation)?;
+    let selected = change_set
+        .operations
+        .iter()
+        .filter(|operation| requested_ids.contains(&operation.id))
+        .map(|operation| {
+            let precondition = change_set
+                .preconditions
+                .iter()
+                .find(|value| value.operation_id() == operation.id)
+                .ok_or_else(|| {
+                    AppError::Conflict("operation has no captured precondition".into())
+                })?;
+            Ok((operation.clone(), precondition.clone()))
+        })
+        .collect::<AppResult<Vec<_>>>()?;
+    for (_, precondition) in &selected {
+        operations::validate_precondition(project, precondition)?;
     }
     let mut candidate = project.clone();
     for (operation, _) in &selected {
-        match operation.kind {
-            OperationType::SetCamera => scene::set_camera(
-                &mut candidate,
-                &operation.scene_id,
-                operation.camera.clone(),
-                false,
-            )?,
-            OperationType::TrimScene => scene::trim(
-                &mut candidate,
-                &operation.scene_id,
-                operation
-                    .in_frame
-                    .as_deref()
-                    .ok_or_else(|| AppError::Invalid("in_frame required".into()))?,
-                operation
-                    .out_frame
-                    .as_deref()
-                    .ok_or_else(|| AppError::Invalid("out_frame required".into()))?,
-                false,
-            )?,
-        }
+        operations::apply(&mut candidate, operation)?;
     }
     let change_set = candidate
         .change_sets
@@ -151,56 +149,13 @@ pub(super) fn apply_change_set(
         .ok_or(AppError::NotFound)?;
     change_set
         .applied_operation_ids
-        .extend(requested.iter().cloned());
+        .extend(selected.iter().map(|(operation, _)| operation.id.clone()));
     change_set.status = if change_set.applied_operation_ids.len() == change_set.operations.len() {
         ChangeSetStatus::Applied
     } else {
         ChangeSetStatus::PartiallyApplied
     };
     *project = candidate;
-    Ok(())
-}
-
-fn capture_precondition(
-    project: &Project,
-    operation: &Operation,
-) -> AppResult<OperationPrecondition> {
-    let target = scene::get(project, &operation.scene_id)?;
-    Ok(match operation.kind {
-        OperationType::SetCamera => OperationPrecondition::SetCamera {
-            operation_id: operation.id.clone(),
-            scene_id: operation.scene_id.clone(),
-            camera: target.camera.clone(),
-        },
-        OperationType::TrimScene => OperationPrecondition::TrimScene {
-            operation_id: operation.id.clone(),
-            scene_id: operation.scene_id.clone(),
-            in_frame: target.in_frame.clone(),
-            out_frame: target.out_frame.clone(),
-        },
-    })
-}
-
-fn validate_precondition(project: &Project, value: &OperationPrecondition) -> AppResult<()> {
-    let matches = match value {
-        OperationPrecondition::SetCamera {
-            scene_id, camera, ..
-        } => scene::get(project, scene_id)?.camera == *camera,
-        OperationPrecondition::TrimScene {
-            scene_id,
-            in_frame,
-            out_frame,
-            ..
-        } => {
-            let target = scene::get(project, scene_id)?;
-            target.in_frame == *in_frame && target.out_frame == *out_frame
-        }
-    };
-    if !matches {
-        return Err(AppError::Conflict(
-            "operation target changed after proposal creation".into(),
-        ));
-    }
     Ok(())
 }
 
@@ -216,32 +171,5 @@ pub(super) fn reject_change_set(project: &mut Project, id: &str) -> AppResult<()
         ));
     }
     change_set.status = ChangeSetStatus::Rejected;
-    Ok(())
-}
-
-fn validate_operation(project: &Project, operation: &Operation) -> AppResult<()> {
-    let target = scene::get(project, &operation.scene_id)?;
-    if target.locked {
-        return Err(AppError::Locked(operation.scene_id.clone()));
-    }
-    match operation.kind {
-        OperationType::SetCamera => {
-            if let Some(camera) = &operation.camera {
-                scene::source(project, &camera.source_id)?;
-            }
-        }
-        OperationType::TrimScene => scene::validate_range(
-            project,
-            &target.source_id,
-            operation
-                .in_frame
-                .as_deref()
-                .ok_or_else(|| AppError::Invalid("in_frame required".into()))?,
-            operation
-                .out_frame
-                .as_deref()
-                .ok_or_else(|| AppError::Invalid("out_frame required".into()))?,
-        )?,
-    }
     Ok(())
 }

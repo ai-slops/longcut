@@ -61,7 +61,7 @@ pub enum MediaStatus {
     Error,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Scene {
     pub id: String,
     pub title: String,

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::Camera;
+use super::{Camera, Scene};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Feedback {
@@ -38,6 +38,13 @@ pub struct ChangeSet {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OperationPrecondition {
+    InsertScene {
+        operation_id: String,
+        scene_id: String,
+        source_id: String,
+        in_frame: String,
+        out_frame: String,
+    },
     SetCamera {
         operation_id: String,
         scene_id: String,
@@ -49,14 +56,27 @@ pub enum OperationPrecondition {
         in_frame: String,
         out_frame: String,
     },
+    UpdateScene {
+        operation_id: String,
+        scene_id: String,
+        title: String,
+        purpose: String,
+        caption: String,
+    },
+    DeleteScene {
+        operation_id: String,
+        scene: Scene,
+    },
 }
 
 impl OperationPrecondition {
     pub fn operation_id(&self) -> &str {
         match self {
-            Self::SetCamera { operation_id, .. } | Self::TrimScene { operation_id, .. } => {
-                operation_id
-            }
+            Self::InsertScene { operation_id, .. }
+            | Self::SetCamera { operation_id, .. }
+            | Self::TrimScene { operation_id, .. }
+            | Self::UpdateScene { operation_id, .. }
+            | Self::DeleteScene { operation_id, .. } => operation_id,
         }
     }
 }
@@ -79,12 +99,19 @@ pub struct Operation {
     pub camera: Option<Camera>,
     pub in_frame: Option<String>,
     pub out_frame: Option<String>,
+    pub source_id: Option<String>,
+    pub title: Option<String>,
+    pub purpose: Option<String>,
+    pub caption: Option<String>,
     pub rationale: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum OperationType {
+    InsertScene,
     SetCamera,
     TrimScene,
+    UpdateScene,
+    DeleteScene,
 }
