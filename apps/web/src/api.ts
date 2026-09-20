@@ -1,6 +1,14 @@
 import ky, { HTTPError } from "ky"
 import { z } from "zod"
 import {
+  type AiRequest,
+  type AiRun,
+  AiRunSchema,
+  AiRunsSchema,
+  type CodexStatus,
+  CodexStatusSchema,
+} from "./ai-domain"
+import {
   type Command,
   type Project,
   ProjectSchema,
@@ -102,4 +110,21 @@ export const api = {
           .json(),
       RenderSchema,
     ),
+  codexStatus: (): Promise<CodexStatus> =>
+    request(() => client.get("codex/status").json(), CodexStatusSchema),
+  codexLogin: (): Promise<CodexStatus> =>
+    request(() => client.post("codex/login").json(), CodexStatusSchema),
+  cancelCodexLogin: (): Promise<CodexStatus> =>
+    request(() => client.post("codex/login/cancel").json(), CodexStatusSchema),
+  codexLogout: (): Promise<CodexStatus> =>
+    request(() => client.post("codex/logout").json(), CodexStatusSchema),
+  listAiRuns: (projectId: string): Promise<readonly AiRun[]> =>
+    request(() => client.get(`projects/${projectId}/ai/runs`).json(), AiRunsSchema),
+  createAiRun: (projectId: string, input: AiRequest): Promise<AiRun> =>
+    request(
+      () => client.post(`projects/${projectId}/ai/runs`, { json: input }).json(),
+      AiRunSchema,
+    ),
+  cancelAiRun: (projectId: string, runId: string): Promise<AiRun> =>
+    request(() => client.post(`projects/${projectId}/ai/runs/${runId}/cancel`).json(), AiRunSchema),
 }

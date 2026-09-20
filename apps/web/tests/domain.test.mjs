@@ -45,3 +45,55 @@ test("accepts trim proposals with null camera fields", () => {
   assert.equal(parsed.in_frame, "30")
   assert.equal(parsed.out_frame, "60")
 })
+
+test("accepts insert, update, and delete proposals with Rust null options", () => {
+  // Given the three extended ChangeSet variants as serialized by Rust.
+  const operations = [
+    {
+      id: "insert",
+      scene_id: "generated-scene",
+      type: "insert_scene",
+      source_id: "source",
+      in_frame: "120",
+      out_frame: "240",
+      title: "Opening",
+      purpose: null,
+      caption: null,
+      camera: null,
+      rationale: "Establish the speaker",
+    },
+    {
+      id: "update",
+      scene_id: "scene",
+      type: "update_scene",
+      source_id: null,
+      in_frame: null,
+      out_frame: null,
+      title: "Clearer title",
+      purpose: "Explain the workflow",
+      caption: "A concise visual explanation",
+      camera: null,
+      rationale: "Make the scene intent explicit",
+    },
+    {
+      id: "delete",
+      scene_id: "scene-two",
+      type: "delete_scene",
+      source_id: null,
+      in_frame: null,
+      out_frame: null,
+      title: null,
+      purpose: null,
+      caption: null,
+      camera: null,
+      rationale: "Remove repetition",
+    },
+  ]
+  // When each operation crosses the wire boundary.
+  const parsed = operations.map((operation) => OperationSchema.safeParse(operation))
+  // Then every closed variant is accepted without dropping explicit nulls.
+  assert.deepEqual(
+    parsed.map((result) => result.success),
+    [true, true, true],
+  )
+})
