@@ -3,6 +3,21 @@ import { z } from "zod"
 const Id = z.string().min(1)
 const Frame = z.string().regex(/^\d+$/)
 
+export const AiProviderSchema = z.enum(["codex", "openai-compatible"])
+
+export const ProviderStatusSchema = z.object({
+  id: AiProviderSchema,
+  name: z.string().min(1),
+  configured: z.boolean(),
+  model: z.string().nullable(),
+  endpoint: z.string().nullable(),
+  detail: z.string().nullable(),
+})
+
+export const ProviderStatusesSchema = z.object({
+  providers: z.array(ProviderStatusSchema),
+})
+
 export const CodexStatusSchema = z.object({
   installed: z.boolean(),
   version: z.string().nullable(),
@@ -20,6 +35,7 @@ export const AiScopeSchema = z.discriminatedUnion("type", [
 ])
 
 export const AiRequestSchema = z.object({
+  provider: AiProviderSchema.default("codex"),
   base_revision: Frame,
   instruction: z.string().min(1).max(8_000),
   consent: z.literal(true),
@@ -29,6 +45,7 @@ export const AiRequestSchema = z.object({
 export const AiRunSchema = z.object({
   id: Id,
   project_id: Id,
+  provider: AiProviderSchema.default("codex"),
   base_revision: Frame,
   instruction: z.string(),
   scope: AiScopeSchema,
@@ -45,6 +62,8 @@ export const AiRunSchema = z.object({
 export const AiRunsSchema = z.array(AiRunSchema).max(50)
 
 export type CodexStatus = z.infer<typeof CodexStatusSchema>
+export type AiProvider = z.infer<typeof AiProviderSchema>
+export type ProviderStatus = z.infer<typeof ProviderStatusSchema>
 export type AiScope = z.infer<typeof AiScopeSchema>
 export type AiRequest = z.infer<typeof AiRequestSchema>
 export type AiRun = z.infer<typeof AiRunSchema>

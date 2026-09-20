@@ -123,6 +123,11 @@ frame-synchronized A/B playback.
 - **States**: checking, unavailable, logged out, device login pending, ChatGPT ready, busy, unsupported API authentication, and error.
 - **Trust**: never renders credential, token, API-key, provider, or custom-endpoint inputs. Pending login can be cancelled and connected sessions can be logged out.
 
+### AgentProviderSelector
+- **Structure**: always-visible two-option selector followed by the selected provider's status surface. Codex composes the existing `AgentConnection`; OpenAI-compatible API shows only server-reported configuration, public model/endpoint, and `.env` setting names.
+- **States**: checking, selected, configured, and unavailable. A configured API provider may be selected before Codex is connected; provider failures never change the selection or trigger fallback.
+- **Trust**: no secret value, API-key field, model override, endpoint override, or browser persistence. API billing is explicitly separate from ChatGPT subscription usage.
+
 ### AgentRequest
 - **Structure**: source/scenes segmented scope, bounded source interval or unlocked scene checklist, exact context disclosure, instruction, consent, and primary request action.
 - **States**: usable with an empty timeline when a ready source exists; empty-source and empty-scene guidance; validation is inline and submission never clears a draft unless it succeeds or the user explicitly resets.
@@ -131,7 +136,7 @@ frame-synchronized A/B playback.
 ### AiRunList
 - **Structure**: newest-first run records with literal status, frozen revision, scope, sample count, summary, warnings, errors, cancel/review/start-over actions.
 - **States**: queued, sampling, generating, ready, error, cancelled, and stale. Only active states poll. A ready proposal links into the existing partial-approval Review workspace.
-- **Truthfulness**: no provider/model label, percentage, fabricated stage, or production mock fallback is displayed.
+- **Truthfulness**: each run displays its frozen provider, but no percentage, fabricated stage, or production mock fallback is displayed.
 
 ### Primitive Showcase
 The `/showcase` query route renders every primitive in default, selected, disabled, empty, processing, and error states. It shares production CSS and is the implementation harness for mobile/tablet/desktop checks.

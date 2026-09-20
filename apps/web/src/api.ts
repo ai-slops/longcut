@@ -7,6 +7,8 @@ import {
   AiRunsSchema,
   type CodexStatus,
   CodexStatusSchema,
+  type ProviderStatus,
+  ProviderStatusesSchema,
 } from "./ai-domain"
 import {
   type Command,
@@ -118,6 +120,10 @@ export const api = {
     request(() => client.post("codex/login/cancel").json(), CodexStatusSchema),
   codexLogout: (): Promise<CodexStatus> =>
     request(() => client.post("codex/logout").json(), CodexStatusSchema),
+  aiProviders: (): Promise<readonly ProviderStatus[]> =>
+    request(() => client.get("ai/providers").json(), ProviderStatusesSchema).then(
+      ({ providers }) => providers,
+    ),
   listAiRuns: (projectId: string): Promise<readonly AiRun[]> =>
     request(() => client.get(`projects/${projectId}/ai/runs`).json(), AiRunsSchema),
   createAiRun: (projectId: string, input: AiRequest): Promise<AiRun> =>

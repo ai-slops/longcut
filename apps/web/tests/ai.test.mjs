@@ -1,6 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { AiRunSchema, CodexStatusSchema } from "../src/ai-domain.ts"
+import {
+  AiRequestSchema,
+  AiRunSchema,
+  CodexStatusSchema,
+  ProviderStatusesSchema,
+} from "../src/ai-domain.ts"
 import { describeOperation, intervalLimit, sampledFrames } from "../src/ai-helpers.ts"
 
 test("parses a pending official device login without credentials", () => {
@@ -46,6 +51,38 @@ test("parses a ready run with a published ChangeSet", () => {
   // Then proposal publication remains explicit and typed.
   assert.equal(parsed.change_set_id, "change-set")
   assert.equal(parsed.sample_count, 12)
+  assert.equal(parsed.provider, "codex")
+})
+
+test("parses public provider configuration without a credential field", () => {
+  const parsed = ProviderStatusesSchema.parse({
+    providers: [
+      {
+        id: "openai-compatible",
+        name: "OpenAI-compatible API",
+        configured: true,
+        model: "vision-model",
+        endpoint: "https://api.example.test/v1",
+        detail: null,
+        api_key: "must-not-cross-the-boundary",
+      },
+    ],
+  })
+
+  assert.equal(parsed.providers[0]?.configured, true)
+  assert.equal("api_key" in parsed.providers[0], false)
+})
+
+test("keeps an explicit API provider on a request", () => {
+  const parsed = AiRequestSchema.parse({
+    provider: "openai-compatible",
+    base_revision: "4",
+    instruction: "Build an initial visual cut",
+    consent: true,
+    scope: { type: "source", source_id: "source", start_frame: "0", end_frame: "300" },
+  })
+
+  assert.equal(parsed.provider, "openai-compatible")
 })
 
 test("bounds source intervals by media duration and six hours", () => {

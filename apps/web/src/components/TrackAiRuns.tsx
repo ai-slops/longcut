@@ -3,6 +3,11 @@ import type { AiRun } from "../ai-domain"
 import { isActiveRun } from "../ai-helpers"
 import { Badge, Button, Panel } from "./Ui"
 
+const providerNames: Record<AiRun["provider"], string> = {
+  codex: "Codex ChatGPT",
+  "openai-compatible": "OpenAI-compatible API",
+}
+
 type TrackAiRunsProps = {
   readonly runs: readonly AiRun[]
   readonly loading: boolean
@@ -54,6 +59,10 @@ export function TrackAiRuns({
             </header>
             {run.summary ? <p>{run.summary}</p> : null}
             <dl className="agent-facts">
+              <div>
+                <dt>Provider</dt>
+                <dd>{providerNames[run.provider]}</dd>
+              </div>
               <div>
                 <dt>Updated</dt>
                 <dd>{new Date(run.updated_at).toLocaleString()}</dd>

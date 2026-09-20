@@ -88,6 +88,44 @@
   display: grid;
   gap: var(--s2);
 }
+.provider-selector fieldset {
+  display: grid;
+  gap: var(--s2);
+}
+.provider-options {
+  display: grid;
+  gap: var(--s2);
+}
+.provider-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  padding: var(--s2);
+  background: var(--ink-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r1);
+  cursor: pointer;
+}
+.provider-option:has(input:checked) {
+  background: var(--ink-3);
+  border-color: var(--lime-1);
+}
+.provider-option > span {
+  display: grid;
+  gap: var(--s1);
+}
+.provider-option input {
+  accent-color: var(--lime-1);
+}
+.provider-option small {
+  color: var(--paper-3);
+  font-size: var(--type-micro);
+}
+.provider-configuration > header {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
 .scene-scope {
   display: grid;
   gap: var(--s2);

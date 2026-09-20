@@ -20,15 +20,20 @@ type ContextDisclosure =
 type AgentContextDisclosureProps = {
   readonly context: ContextDisclosure
   readonly fps: 30 | 60
+  readonly providerName: string
 }
 
-export function AgentContextDisclosure({ context, fps }: AgentContextDisclosureProps) {
+export function AgentContextDisclosure({
+  context,
+  fps,
+  providerName,
+}: AgentContextDisclosureProps) {
   return (
     <section className="context-disclosure" aria-labelledby="context-heading">
       <header>
         <Eye size={16} />
         <div>
-          <strong id="context-heading">Context sent to OpenAI</strong>
+          <strong id="context-heading">Context sent to {providerName}</strong>
           <p>Only this selection is authorized.</p>
         </div>
       </header>

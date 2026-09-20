@@ -1,6 +1,5 @@
-import { WandSparkles } from "lucide-react"
 import { useMemo, useState } from "react"
-import type { AiRequest, AiScope, CodexStatus } from "../ai-domain"
+import type { AiProvider, AiRequest, AiScope, CodexStatus, ProviderStatus } from "../ai-domain"
 import {
   intervalLimit,
   MAX_AI_INSTRUCTION_LENGTH,
@@ -9,16 +8,32 @@ import {
 } from "../ai-helpers"
 import type { Project } from "../domain"
 import { AgentContextDisclosure } from "./AgentContextDisclosure"
+import {
+  AgentInstructionMeta,
+  AgentRequestIntro,
+  ProviderConsent,
+  ProviderReadiness,
+  providerInfo,
+} from "./AgentRequestCopy"
 import { Badge, Button, formatFrames, Panel, TextArea } from "./Ui"
 
 type AgentRequestProps = {
   readonly project: Project
+  readonly provider: AiProvider
+  readonly providerStatus: ProviderStatus | null
   readonly connection: CodexStatus | null
   readonly submitting: boolean
   readonly onSubmit: (request: AiRequest) => Promise<boolean>
 }
 
-export function AgentRequest({ project, connection, submitting, onSubmit }: AgentRequestProps) {
+export function AgentRequest({
+  project,
+  provider,
+  providerStatus,
+  connection,
+  submitting,
+  onSubmit,
+}: AgentRequestProps) {
   const [scopeType, setScopeType] = useState<AiScope["type"]>("source")
   const [sourceId, setSourceId] = useState(project.sources[0]?.id ?? "")
   const [startFrame, setStartFrame] = useState(0)
@@ -27,27 +42,28 @@ export function AgentRequest({ project, connection, submitting, onSubmit }: Agen
   )
   const [sceneIds, setSceneIds] = useState<readonly string[]>([])
   const [instruction, setInstruction] = useState("")
-  const [consent, setConsent] = useState(false)
+  const [consentProvider, setConsentProvider] = useState<AiProvider | null>(null)
   const source = project.sources.find((item) => item.id === sourceId) ?? null
   const selectedScenes = project.scenes.filter((scene) => sceneIds.includes(scene.id))
   const samples = useMemo(() => sampledFrames(startFrame, endFrame), [startFrame, endFrame])
-  const maxSpan = source ? intervalLimit(source.duration_frames, project.frame_rate) : 0
   const sourceValid = Boolean(
     source?.status === "ready" &&
       source.width > 0 &&
       source.height > 0 &&
       endFrame > startFrame &&
       endFrame <= Number(source.duration_frames) &&
-      endFrame - startFrame <= maxSpan,
+      endFrame - startFrame <=
+        (source ? intervalLimit(source.duration_frames, project.frame_rate) : 0),
   )
   const scopeValid =
     scopeType === "source" ? sourceValid : sceneIds.length > 0 && sceneIds.length <= MAX_AI_SCENES
+  const { ready: providerReady, name: providerName } = providerInfo(
+    provider,
+    providerStatus,
+    connection,
+  )
   const canSubmit =
-    connection?.state === "ready" &&
-    connection.auth_mode === "chatgpt" &&
-    scopeValid &&
-    instruction.trim().length > 0 &&
-    consent
+    providerReady && scopeValid && instruction.trim().length > 0 && consentProvider === provider
 
   function chooseSource(id: string): void {
     const next = project.sources.find((item) => item.id === id)
@@ -68,6 +84,7 @@ export function AgentRequest({ project, connection, submitting, onSubmit }: Agen
           }
         : { type: "scenes", scene_ids: [...sceneIds] }
     return {
+      provider,
       base_revision: project.revision,
       instruction: instruction.trim(),
       consent: true,
@@ -86,18 +103,12 @@ export function AgentRequest({ project, connection, submitting, onSubmit }: Agen
             void onSubmit(request).then((success) => {
               if (success) {
                 setInstruction("")
-                setConsent(false)
+                setConsentProvider(null)
               }
             })
         }}
       >
-        <div className="agent-intro">
-          <WandSparkles size={20} />
-          <div>
-            <strong>Describe the edit, not the clicks</strong>
-            <p>Codex can propose changes. It cannot apply them; you review each operation first.</p>
-          </div>
-        </div>
+        <AgentRequestIntro />
         <fieldset>
           <legend>Scope</legend>
           <div className="segmented">
@@ -203,6 +214,7 @@ export function AgentRequest({ project, connection, submitting, onSubmit }: Agen
           </div>
         )}
         <AgentContextDisclosure
+          providerName={providerName}
           fps={project.frame_rate}
           context={
             scopeType === "source"
@@ -226,28 +238,16 @@ export function AgentRequest({ project, connection, submitting, onSubmit }: Agen
           rows={5}
           placeholder="Example: Build an initial visual cut that opens on the wide shot."
         />
-        <div className="instruction-meta">
-          <span>Try: initial visual cut · shorten selected scenes · move camera</span>
-          <code>
-            {instruction.length}/{MAX_AI_INSTRUCTION_LENGTH}
-          </code>
-        </div>
-        <label className="check-field consent-field">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(event) => setConsent(event.currentTarget.checked)}
-          />
-          <span>I consent to send the context listed above to OpenAI for this request.</span>
-        </label>
+        <AgentInstructionMeta length={instruction.length} maximum={MAX_AI_INSTRUCTION_LENGTH} />
+        <ProviderConsent
+          checked={consentProvider === provider}
+          providerName={providerName}
+          onChange={(checked) => setConsentProvider(checked ? provider : null)}
+        />
         <Button type="submit" variant="primary" busy={submitting} disabled={!canSubmit}>
           Request proposal
         </Button>
-        {connection?.state !== "ready" ? (
-          <p className="muted">
-            Connect a supported ChatGPT subscription before requesting an edit.
-          </p>
-        ) : null}
+        {!providerReady ? <ProviderReadiness provider={provider} /> : null}
       </form>
     </Panel>
   )
