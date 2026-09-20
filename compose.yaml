@@ -11,8 +11,14 @@ services:
       LONGCUT_BIND: 0.0.0.0:4000
       LONGCUT_DATA: /data
       RUST_LOG: info
+      LONGCUT_CODEX_URL: http://codex:4100
+      LONGCUT_CODEX_TOKEN_FILE: /run/codex-link/token
     volumes:
       - projects:/data
+      - codex-link:/run/codex-link:ro
+    depends_on:
+      codex:
+        condition: service_healthy
     init: true
     stop_grace_period: 30s
     security_opt:
@@ -20,6 +26,35 @@ services:
     cap_drop:
       - ALL
 
+  codex:
+    platform: linux/amd64
+    build:
+      context: services/codex
+      target: runtime
+    image: longcut-codex:0.155.1
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,noexec,size=256m,mode=1777
+    volumes:
+      - codex-auth:/auth
+      - codex-link:/run/codex-link
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4100/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+
 volumes:
   projects:
     name: longcut-projects
+  codex-auth:
+    name: longcut-codex-auth
+  codex-link:
+    name: longcut-codex-link
