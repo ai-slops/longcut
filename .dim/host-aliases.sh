@@ -8,7 +8,7 @@ set -eu
 test -r "$DIM_PROJECT_MANIFEST"
 
 jq -e --arg root "${DIM_PROJECT_ROOT:-$PWD}" --arg git "$DIM_GIT_BASE_URL" '
-  if .schemaVersion != 1 or .root.path != $root or .gitBaseUrl != $git then
+  if .schemaVersion != 2 or .root.path != $root or .gitBaseUrl != $git then
     error("DIM manifest does not match this project lifecycle")
   elif (.hostAliases["dim-gitea"] | type) != "array" then
     error("DIM manifest has no approved dim-gitea address list")
