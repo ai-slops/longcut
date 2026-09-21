@@ -48,7 +48,7 @@ services:
       - |
         chown root:root /usr/bin/newuidmap /usr/bin/newgidmap
         chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
-        exec su -p -s /bin/sh rootless -c 'exec dockerd-entrypoint.sh'
+        exec su -s /bin/sh rootless -c 'HOME=/home/rootless XDG_RUNTIME_DIR=/run/user/1000 exec dockerd-entrypoint.sh'
     environment:
       DOCKER_HOST: "tcp://127.0.0.1:2375"
       DOCKER_TLS_CERTDIR: ""
