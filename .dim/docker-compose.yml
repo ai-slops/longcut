@@ -41,6 +41,14 @@ services:
     build:
       context: dind
     privileged: true
+    user: root
+    entrypoint:
+      - sh
+      - -lc
+      - |
+        chown root:root /usr/bin/newuidmap /usr/bin/newgidmap
+        chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
+        exec su-exec rootless dockerd-entrypoint.sh
     environment:
       DOCKER_HOST: "tcp://127.0.0.1:2375"
       DOCKER_TLS_CERTDIR: ""
