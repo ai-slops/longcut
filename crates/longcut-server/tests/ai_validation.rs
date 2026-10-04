@@ -134,6 +134,7 @@ fn scene_project() -> Project {
         frame_rate: 30,
         updated_at: String::new(),
         brief: String::new(),
+        source_sessions: vec![],
         sources: vec![
             source("selected", SourceRole::Primary),
             source("existing-camera", SourceRole::Primary),

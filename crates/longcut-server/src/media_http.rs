@@ -1,4 +1,4 @@
-use std::path::Path as FsPath;
+use std::path::{Path as FsPath, PathBuf};
 
 use axum::{
     Json,
@@ -83,7 +83,7 @@ pub async fn import(
             return Err(error);
         }
     };
-    let response = state.store.add_source(&id, source.clone()).await?;
+    let response = crate::ordinary_session::register(&state, &project, &source).await?;
     let worker_state = state.clone();
     tokio::spawn(async move {
         let updated = match media::derivatives(&worker_state.artifacts, &source).await {
@@ -108,15 +108,22 @@ pub async fn demo(
 ) -> AppResult<Json<Project>> {
     let project = state.store.get(&id).await?;
     let (path, artifact) = media::generate_demo(&state.artifacts).await?;
-    let source = media::probe_source(
+    let source = match media::probe_source(
         &path,
         "SYNTHETIC DEMO.mp4",
         SourceRole::Program,
         project.frame_rate,
         &artifact,
     )
-    .await?;
-    let response = state.store.add_source(&id, source.clone()).await?;
+    .await
+    {
+        Ok(source) => source,
+        Err(error) => {
+            let _ = fs::remove_file(path).await;
+            return Err(error);
+        }
+    };
+    let response = crate::ordinary_session::register(&state, &project, &source).await?;
     let worker_state = state.clone();
     tokio::spawn(async move {
         let updated = match media::derivatives(&worker_state.artifacts, &source).await {
@@ -191,7 +198,10 @@ pub async fn serve_artifact(
     {
         return Err(AppError::NotFound);
     }
-    let path = state.artifacts.join(&artifact);
+    serve_path(state.artifacts.join(&artifact), headers).await
+}
+
+pub(crate) async fn serve_path(path: PathBuf, headers: HeaderMap) -> AppResult<Response> {
     let mut file = File::open(&path).await.map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
             AppError::NotFound

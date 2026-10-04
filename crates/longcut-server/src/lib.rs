@@ -14,8 +14,11 @@ pub mod http;
 pub mod media;
 mod media_http;
 pub mod model;
+mod ordinary_session;
 pub mod render;
+mod session_import;
 pub mod store;
+pub mod transcript;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -23,6 +26,7 @@ pub struct AppState {
     pub artifacts: Arc<PathBuf>,
     pub codex: Arc<dyn ai::CodexClient>,
     pub openai: ai::OpenAiProvider,
+    pub sessions: Arc<session_import::Service>,
     ai_cancellations: Arc<tokio::sync::Mutex<HashMap<String, tokio_util::sync::CancellationToken>>>,
 }
 
@@ -51,11 +55,14 @@ impl AppState {
         let artifacts = data.join("artifacts");
         tokio::fs::create_dir_all(&artifacts).await?;
         let store = Store::open(&data.join("longcut.sqlite3")).await?;
+        let sessions =
+            Arc::new(session_import::Service::initialize(data, &store, &artifacts).await?);
         Ok(Self {
             store,
             artifacts: Arc::new(artifacts),
             codex,
             openai,
+            sessions,
             ai_cancellations: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         })
     }

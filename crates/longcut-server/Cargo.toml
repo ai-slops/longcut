@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+longcut-session-contract = { path = "../session-contract" }
+longcut-session-media = { path = "../session-media" }
+longcut-timebase = { path = "../timebase" }
 anyhow = "1"
 async-trait = "0.1"
 axum = { version = "0.8", features = ["macros", "multipart"] }
@@ -27,6 +30,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [dev-dependencies]
+sha2 = "0.10"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 

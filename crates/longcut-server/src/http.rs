@@ -40,6 +40,44 @@ pub fn router(state: AppState) -> Router {
                 )
                 .route("/projects/{id}/demo", post(crate::media_http::demo))
                 .route(
+                    "/projects/{id}/session-imports",
+                    get(crate::session_import::list)
+                        .post(crate::session_import::upload)
+                        .layer(DefaultBodyLimit::disable()),
+                )
+                .route(
+                    "/projects/{id}/session-imports/{import_id}",
+                    get(crate::session_import::get),
+                )
+                .route(
+                    "/projects/{id}/session-imports/{import_id}/confirm",
+                    post(crate::session_import::confirm),
+                )
+                .route(
+                    "/projects/{id}/session-imports/{import_id}/cancel",
+                    post(crate::session_import::cancel),
+                )
+                .route(
+                    "/projects/{id}/source-sessions/{session_id}",
+                    get(crate::session_import::session),
+                )
+                .route(
+                    "/projects/{id}/source-sessions/{session_id}/assets/{asset_id}",
+                    get(crate::session_import::asset),
+                )
+                .route(
+                    "/projects/{id}/renders/{render_id}/source-sessions/{session_id}",
+                    get(crate::session_import::render_session),
+                )
+                .route(
+                    "/projects/{id}/sources/{source_id}/transcripts",
+                    post(crate::transcript::import),
+                )
+                .route(
+                    "/projects/{id}/sources/{source_id}/transcript",
+                    get(crate::transcript::get),
+                )
+                .route(
                     "/projects/{id}/renders",
                     post(crate::media_http::create_render),
                 )
