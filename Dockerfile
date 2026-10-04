@@ -17,6 +17,8 @@ VOLUME /data
 CMD ["longcut-server"]
 
 FROM build AS check
+COPY fixtures ./fixtures
+COPY schemas ./schemas
 RUN rustup component add rustfmt clippy
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*

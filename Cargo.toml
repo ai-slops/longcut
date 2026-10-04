@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/longcut-server"]
+members = ["crates/longcut-server", "crates/timebase", "crates/session-contract", "crates/session-media"]
 resolver = "2"
 
 [workspace.package]
