@@ -1,0 +1,4 @@
+{
+  "sources": [{ "source_id": "program", "display_name": "Program reference", "semantic_role": "video.program_reference", "kind": "av", "media_bindings": [{ "asset_id": "program-file", "stream_index": 0 }, { "asset_id": "program-file", "stream_index": 1 }] }],
+  "assets": [{ "asset_id": "program-file", "uri": "media/program.mp4", "streams": [{ "stream_index": 0, "kind": "video", "codec": "h264" }, { "stream_index": 1, "kind": "audio", "codec": "aac", "sample_rate": 48000, "channels": 2 }] }]
+}

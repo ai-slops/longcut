@@ -1,0 +1,1033 @@
+{
+  "audio-mix": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "AudioMix",
+    "type": "object",
+    "properties": {
+      "extensions": {
+        "type": "object",
+        "additionalProperties": true,
+        "default": {}
+      },
+      "intervals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/AudioInterval"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "intervals"
+    ],
+    "$defs": {
+      "AudioContribution": {
+        "type": "object",
+        "properties": {
+          "audible": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "gain_db": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "pan": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "semantic_role": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AudioRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "audible"
+        ]
+      },
+      "AudioInterval": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "maximum": 1.0,
+            "minimum": 0.0
+          },
+          "contributions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/AudioContribution"
+            }
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Coverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_range": {
+            "$ref": "#/$defs/Range"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "session_range",
+          "contributions",
+          "confidence"
+        ]
+      },
+      "AudioRole": {
+        "type": "string",
+        "enum": [
+          "dialogue",
+          "content",
+          "background",
+          "music",
+          "effect"
+        ]
+      },
+      "Coverage": {
+        "type": "string",
+        "enum": [
+          "complete",
+          "partial"
+        ]
+      },
+      "Integer": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$"
+      },
+      "Range": {
+        "type": "object",
+        "properties": {
+          "end": {
+            "$ref": "#/$defs/SessionTime"
+          },
+          "start": {
+            "$ref": "#/$defs/SessionTime"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "SessionTime": {
+        "type": "object",
+        "properties": {
+          "monotonic_ns": {
+            "$ref": "#/$defs/Integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "monotonic_ns"
+        ]
+      }
+    }
+  },
+  "manifest": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Manifest",
+    "type": "object",
+    "properties": {
+      "audio_mix_file": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "contract": {
+        "$ref": "#/$defs/Contract"
+      },
+      "duration": {
+        "$ref": "#/$defs/Duration"
+      },
+      "extensions": {
+        "type": "object",
+        "additionalProperties": true,
+        "default": {}
+      },
+      "media_health_file": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "package_state": {
+        "$ref": "#/$defs/PackageState"
+      },
+      "program_reference_source_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "session_id": {
+        "type": "string"
+      },
+      "sources_file": {
+        "type": "string"
+      },
+      "time_maps_file": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "version": {
+        "type": "string",
+        "pattern": "^0\\.1\\.(0|[1-9][0-9]*)$"
+      },
+      "visual_composition_file": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "contract",
+      "version",
+      "package_state",
+      "session_id",
+      "duration",
+      "sources_file"
+    ],
+    "$defs": {
+      "Contract": {
+        "type": "string",
+        "enum": [
+          "edit-session-package"
+        ]
+      },
+      "Duration": {
+        "type": "object",
+        "properties": {
+          "ticks": {
+            "$ref": "#/$defs/Integer"
+          },
+          "timescale": {
+            "$ref": "#/$defs/Integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "ticks",
+          "timescale"
+        ]
+      },
+      "Integer": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$"
+      },
+      "PackageState": {
+        "type": "string",
+        "enum": [
+          "complete"
+        ]
+      }
+    }
+  },
+  "media-health": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "MediaHealth",
+    "type": "object",
+    "properties": {
+      "extensions": {
+        "type": "object",
+        "additionalProperties": true,
+        "default": {}
+      },
+      "intervals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/HealthInterval"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "intervals"
+    ],
+    "$defs": {
+      "HealthInterval": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "maximum": 1.0,
+            "minimum": 0.0
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "media_ref": {
+            "$ref": "#/$defs/HealthRef"
+          },
+          "session_range": {
+            "$ref": "#/$defs/Range"
+          },
+          "status": {
+            "$ref": "#/$defs/HealthStatus"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "media_ref",
+          "session_range",
+          "status",
+          "confidence"
+        ]
+      },
+      "HealthRef": {
+        "type": "object",
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "stream_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "asset_id"
+        ]
+      },
+      "HealthStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "missing",
+          "truncated",
+          "corrupt",
+          "decode-error",
+          "timestamp-gap",
+          "unknown"
+        ]
+      },
+      "Integer": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$"
+      },
+      "Range": {
+        "type": "object",
+        "properties": {
+          "end": {
+            "$ref": "#/$defs/SessionTime"
+          },
+          "start": {
+            "$ref": "#/$defs/SessionTime"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "SessionTime": {
+        "type": "object",
+        "properties": {
+          "monotonic_ns": {
+            "$ref": "#/$defs/Integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "monotonic_ns"
+        ]
+      }
+    }
+  },
+  "sources": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Registry",
+    "type": "object",
+    "properties": {
+      "assets": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Asset"
+        }
+      },
+      "extensions": {
+        "type": "object",
+        "additionalProperties": true,
+        "default": {}
+      },
+      "sources": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "sources",
+      "assets"
+    ],
+    "$defs": {
+      "Asset": {
+        "type": "object",
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "content_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "streams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Stream"
+            }
+          },
+          "uri": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "asset_id",
+          "uri",
+          "streams"
+        ]
+      },
+      "Binding": {
+        "type": "object",
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "channel_indices": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "stream_index": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "asset_id",
+          "stream_index"
+        ]
+      },
+      "Integer": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$"
+      },
+      "Rational": {
+        "type": "object",
+        "properties": {
+          "denominator": {
+            "$ref": "#/$defs/Integer"
+          },
+          "numerator": {
+            "$ref": "#/$defs/Integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "numerator",
+          "denominator"
+        ]
+      },
+      "Source": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceKind"
+          },
+          "media_bindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Binding"
+            }
+          },
+          "semantic_role": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "display_name",
+          "semantic_role",
+          "kind",
+          "media_bindings"
+        ]
+      },
+      "SourceKind": {
+        "type": "string",
+        "enum": [
+          "video",
+          "audio",
+          "av"
+        ]
+      },
+      "Stream": {
+        "type": "object",
+        "properties": {
+          "channel_layout": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channels": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          },
+          "codec": {
+            "type": "string"
+          },
+          "frame_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Rational"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          },
+          "kind": {
+            "$ref": "#/$defs/StreamKind"
+          },
+          "orientation": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "sample_rate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          },
+          "stream_index": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "time_base": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Rational"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "stream_index",
+          "kind",
+          "codec"
+        ]
+      },
+      "StreamKind": {
+        "type": "string",
+        "enum": [
+          "video",
+          "audio"
+        ]
+      }
+    }
+  },
+  "time-maps": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TimeMaps",
+    "type": "object",
+    "properties": {
+      "extensions": {
+        "type": "object",
+        "additionalProperties": true,
+        "default": {}
+      },
+      "segments": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/TimeMapSegment"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "segments"
+    ],
+    "$defs": {
+      "Integer": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$"
+      },
+      "MediaRef": {
+        "type": "object",
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "stream_index": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "asset_id",
+          "stream_index"
+        ]
+      },
+      "MediaTime": {
+        "type": "object",
+        "properties": {
+          "ticks": {
+            "$ref": "#/$defs/Integer"
+          },
+          "timebase_den": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "timebase_num": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "ticks",
+          "timebase_num",
+          "timebase_den"
+        ]
+      },
+      "Range": {
+        "type": "object",
+        "properties": {
+          "end": {
+            "$ref": "#/$defs/MediaTime"
+          },
+          "start": {
+            "$ref": "#/$defs/MediaTime"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "Range2": {
+        "type": "object",
+        "properties": {
+          "end": {
+            "$ref": "#/$defs/SessionTime"
+          },
+          "start": {
+            "$ref": "#/$defs/SessionTime"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "SessionTime": {
+        "type": "object",
+        "properties": {
+          "monotonic_ns": {
+            "$ref": "#/$defs/Integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "monotonic_ns"
+        ]
+      },
+      "TimeMapSegment": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "maximum": 1.0,
+            "minimum": 0.0
+          },
+          "media_range": {
+            "$ref": "#/$defs/Range"
+          },
+          "media_ref": {
+            "$ref": "#/$defs/MediaRef"
+          },
+          "session_range": {
+            "$ref": "#/$defs/Range2"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "media_ref",
+          "media_range",
+          "session_range",
+          "confidence"
+        ]
+      }
+    }
+  },
+  "visual-composition": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "VisualComposition",
+    "type": "object",
+    "properties": {
+      "extensions": {
+        "type": "object",
+        "additionalProperties": true,
+        "default": {}
+      },
+      "intervals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/VisualInterval"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "intervals"
+    ],
+    "$defs": {
+      "Canvas": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "width",
+          "height"
+        ]
+      },
+      "Coverage": {
+        "type": "string",
+        "enum": [
+          "complete",
+          "partial"
+        ]
+      },
+      "Crop": {
+        "type": "object",
+        "properties": {
+          "bottom": {
+            "type": "number",
+            "format": "double"
+          },
+          "left": {
+            "type": "number",
+            "format": "double"
+          },
+          "right": {
+            "type": "number",
+            "format": "double"
+          },
+          "top": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "top",
+          "right",
+          "bottom",
+          "left"
+        ]
+      },
+      "Fit": {
+        "type": "string",
+        "enum": [
+          "contain",
+          "cover",
+          "stretch",
+          "unknown"
+        ]
+      },
+      "Integer": {
+        "type": "string",
+        "pattern": "^-?(0|[1-9][0-9]*)$"
+      },
+      "Range": {
+        "type": "object",
+        "properties": {
+          "end": {
+            "$ref": "#/$defs/SessionTime"
+          },
+          "start": {
+            "$ref": "#/$defs/SessionTime"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "Rect": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "type": "number",
+            "format": "double"
+          },
+          "width": {
+            "type": "number",
+            "format": "double"
+          },
+          "x": {
+            "type": "number",
+            "format": "double"
+          },
+          "y": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      },
+      "SessionTime": {
+        "type": "object",
+        "properties": {
+          "monotonic_ns": {
+            "$ref": "#/$defs/Integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "monotonic_ns"
+        ]
+      },
+      "VisualContribution": {
+        "type": "object",
+        "properties": {
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Crop"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fit": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Fit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "normalized_rect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Rect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opacity": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "semantic_role": {
+            "$ref": "#/$defs/VisualRole"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "z_order": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "semantic_role"
+        ]
+      },
+      "VisualInterval": {
+        "type": "object",
+        "properties": {
+          "canvas": {
+            "$ref": "#/$defs/Canvas"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "maximum": 1.0,
+            "minimum": 0.0
+          },
+          "contributions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/VisualContribution"
+            }
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Coverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_range": {
+            "$ref": "#/$defs/Range"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "session_range",
+          "canvas",
+          "contributions",
+          "confidence"
+        ]
+      },
+      "VisualRole": {
+        "type": "string",
+        "enum": [
+          "primary",
+          "secondary",
+          "reaction",
+          "background"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "intervals": [{
+    "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } },
+    "contributions": [{ "source_id": "mic", "audible": true, "gain_db": 0, "pan": 0, "semantic_role": "dialogue" }],
+    "coverage": "complete",
+    "confidence": 1
+  }]
+}

@@ -1,0 +1,8 @@
+{
+  "segments": [
+    { "media_ref": { "asset_id": "program-file", "stream_index": 0 }, "media_range": { "start": { "ticks": "0", "timebase_num": 1, "timebase_den": 30 }, "end": { "ticks": "300", "timebase_num": 1, "timebase_den": 30 } }, "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } }, "confidence": 1 },
+    { "media_ref": { "asset_id": "program-file", "stream_index": 1 }, "media_range": { "start": { "ticks": "0", "timebase_num": 1, "timebase_den": 48000 }, "end": { "ticks": "480000", "timebase_num": 1, "timebase_den": 48000 } }, "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } }, "confidence": 1 },
+    { "media_ref": { "asset_id": "clean-file", "stream_index": 0 }, "media_range": { "start": { "ticks": "0", "timebase_num": 1, "timebase_den": 30 }, "end": { "ticks": "300", "timebase_num": 1, "timebase_den": 30 } }, "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } }, "confidence": 1 },
+    { "media_ref": { "asset_id": "clean-file", "stream_index": 1 }, "media_range": { "start": { "ticks": "0", "timebase_num": 1, "timebase_den": 48000 }, "end": { "ticks": "480000", "timebase_num": 1, "timebase_den": 48000 } }, "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } }, "confidence": 1 }
+  ]
+}

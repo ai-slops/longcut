@@ -1,0 +1,11 @@
+{
+  "sources": [
+    { "source_id": "program", "display_name": "Program reference", "semantic_role": "video.program_reference", "kind": "av", "media_bindings": [{ "asset_id": "program-file", "stream_index": 0 }, { "asset_id": "program-file", "stream_index": 1 }] },
+    { "source_id": "game", "display_name": "Game", "semantic_role": "video.primary", "kind": "video", "media_bindings": [{ "asset_id": "clean-file", "stream_index": 0 }] },
+    { "source_id": "mic", "display_name": "Microphone", "semantic_role": "audio.creator_mic", "kind": "audio", "media_bindings": [{ "asset_id": "clean-file", "stream_index": 1, "channel_indices": [0] }] }
+  ],
+  "assets": [
+    { "asset_id": "program-file", "uri": "media/program.mp4", "streams": [{ "stream_index": 0, "kind": "video", "codec": "h264", "width": 1920, "height": 1080 }, { "stream_index": 1, "kind": "audio", "codec": "aac", "sample_rate": 48000, "channels": 2 }] },
+    { "asset_id": "clean-file", "uri": "media/clean.mkv", "streams": [{ "stream_index": 0, "kind": "video", "codec": "h264", "width": 1920, "height": 1080 }, { "stream_index": 1, "kind": "audio", "codec": "pcm_s16le", "sample_rate": 48000, "channels": 2 }] }
+  ]
+}

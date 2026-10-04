@@ -1,0 +1,9 @@
+{
+  "contract": "edit-session-package",
+  "version": "0.1.0",
+  "package_state": "complete",
+  "session_id": "synthetic-program-only",
+  "duration": { "ticks": "10", "timescale": "1" },
+  "program_reference_source_id": "program",
+  "sources_file": "sources.json"
+}

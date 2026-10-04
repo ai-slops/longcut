@@ -1,0 +1,6 @@
+{
+  "intervals": [
+    { "media_ref": { "asset_id": "program-file" }, "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } }, "status": "available", "confidence": 1 },
+    { "media_ref": { "asset_id": "clean-file" }, "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } }, "status": "available", "confidence": 1 }
+  ]
+}

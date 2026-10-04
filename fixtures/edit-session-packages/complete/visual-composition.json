@@ -1,0 +1,9 @@
+{
+  "intervals": [{
+    "session_range": { "start": { "monotonic_ns": "0" }, "end": { "monotonic_ns": "10000000000" } },
+    "canvas": { "width": 1920, "height": 1080 },
+    "contributions": [{ "source_id": "game", "semantic_role": "primary", "normalized_rect": { "x": 0, "y": 0, "width": 1, "height": 1 }, "fit": "contain", "opacity": 1 }],
+    "coverage": "complete",
+    "confidence": 1
+  }]
+}

@@ -1,0 +1,14 @@
+{
+  "contract": "edit-session-package",
+  "version": "0.1.0",
+  "package_state": "complete",
+  "session_id": "synthetic-session",
+  "duration": { "ticks": "10000000000", "timescale": "1000000000" },
+  "program_reference_source_id": "program",
+  "sources_file": "sources.json",
+  "time_maps_file": "time-maps.json",
+  "visual_composition_file": "visual-composition.json",
+  "audio_mix_file": "audio-mix.json",
+  "media_health_file": "media-health.json",
+  "extensions": { "org.longcut.fixture": { "synthetic": true, "media_included": false } }
+}
