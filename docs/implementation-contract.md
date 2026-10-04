@@ -2,10 +2,14 @@
 
 ## Delivery sequence
 
-The supplied specification is the product roadmap. Implementation starts with its
+The [revised specification](../ai_live_stream_editing_design_revised.md) is the product roadmap.
+The linked document is a condensed repository edition, not a verbatim archive.
+See [current milestone status](implementation-status.md). Implementation starts with its
 section 17.8 vertical slice, before analysis or automatic story generation. A working
 slice is not equivalent to Stage 1 alpha. Stage 1 additionally requires long-session,
-multi-platform, Korean ASR, OBS, analysis, and creator acceptance evidence.
+multi-platform, Korean ASR, completed producer-neutral session packages, analysis,
+and creator acceptance evidence. Capture software, OBS loggers/plugins and live
+capture-state replay are outside the editor's responsibility.
 
 ## Environment
 
