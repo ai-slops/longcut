@@ -127,6 +127,13 @@ function Application() {
       onImport={async (file, role) => {
         void (await withBusy(() => api.importMedia(project, file, role)))
       }}
+      onSessionProject={(incoming) =>
+        setProject((current) =>
+          current?.id === incoming.id && BigInt(current.revision) <= BigInt(incoming.revision)
+            ? incoming
+            : current,
+        )
+      }
       onDemo={async () => {
         void (await withBusy(() => api.createDemo(project)))
       }}

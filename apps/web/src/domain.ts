@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { SourceSessionSummarySchema } from "./session-domain.ts"
 
 const Id = z.string().min(1)
 const Frame = z.string().regex(/^\d+$/)
@@ -145,6 +146,7 @@ export const ProjectSchema = z.object({
   updated_at: z.string(),
   brief: z.string(),
   sources: z.array(SourceSchema),
+  source_sessions: z.array(SourceSessionSummarySchema).default([]),
   scenes: z.array(SceneSchema),
   feedback: z.array(FeedbackSchema),
   change_sets: z.array(ChangeSetSchema),

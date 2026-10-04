@@ -19,6 +19,17 @@ import {
   type Render,
   RenderSchema,
 } from "./domain"
+import {
+  type SessionImportJob,
+  SessionImportJobSchema,
+  SessionImportJobsSchema,
+} from "./session-domain"
+import type { PackageFile } from "./session-files"
+import {
+  OptionalTranscriptPageSchema,
+  type TranscriptPage,
+  TranscriptPageSchema,
+} from "./transcript-domain"
 
 const ApiErrorSchema = z.object({ error: z.object({ code: z.string(), message: z.string() }) })
 const client = ky.create({
@@ -96,6 +107,80 @@ export const api = {
       ProjectSchema,
     )
   },
+  createSessionImport: (
+    projectId: string,
+    files: readonly PackageFile[],
+  ): Promise<SessionImportJob> => {
+    const body = new FormData()
+    for (const { file, path } of files) body.append("file", file, path)
+    return request(
+      () => client.post(`projects/${projectId}/session-imports`, { body, timeout: false }).json(),
+      SessionImportJobSchema,
+    )
+  },
+  listSessionImports: (projectId: string): Promise<readonly SessionImportJob[]> =>
+    request(
+      () => client.get(`projects/${projectId}/session-imports`).json(),
+      SessionImportJobsSchema,
+    ),
+  getSessionImport: (projectId: string, importId: string): Promise<SessionImportJob> =>
+    request(
+      () => client.get(`projects/${projectId}/session-imports/${importId}`).json(),
+      SessionImportJobSchema,
+    ),
+  confirmSessionImport: (
+    project: Project,
+    importId: string,
+    allowDegraded: boolean,
+  ): Promise<Project> =>
+    request(
+      () =>
+        client
+          .post(`projects/${project.id}/session-imports/${importId}/confirm`, {
+            json: { base_revision: project.revision, allow_degraded: allowDegraded },
+            timeout: false,
+          })
+          .json(),
+      ProjectSchema,
+    ),
+  cancelSessionImport: (projectId: string, importId: string): Promise<SessionImportJob> =>
+    request(
+      () => client.post(`projects/${projectId}/session-imports/${importId}/cancel`).json(),
+      SessionImportJobSchema,
+    ),
+  getTranscript: (
+    projectId: string,
+    sourceId: string,
+    options: { readonly query: string; readonly cursor?: string; readonly signal: AbortSignal },
+  ): Promise<TranscriptPage | null> =>
+    request(
+      () =>
+        client
+          .get(`projects/${projectId}/sources/${sourceId}/transcript`, {
+            searchParams: {
+              query: options.query,
+              ...(options.cursor ? { cursor: options.cursor } : {}),
+            },
+            signal: options.signal,
+          })
+          .json(),
+      OptionalTranscriptPageSchema,
+    ),
+  importTranscript: (
+    projectId: string,
+    sourceId: string,
+    input: { readonly file: File; readonly signal: AbortSignal },
+  ): Promise<TranscriptPage> =>
+    request(
+      async () =>
+        client
+          .post(`projects/${projectId}/sources/${sourceId}/transcripts`, {
+            json: { filename: input.file.name, text: await input.file.text() },
+            signal: input.signal,
+          })
+          .json(),
+      TranscriptPageSchema,
+    ),
   createDemo: (project: Project): Promise<Project> =>
     request(
       () => client.post(`projects/${project.id}/demo`, { timeout: false }).json(),

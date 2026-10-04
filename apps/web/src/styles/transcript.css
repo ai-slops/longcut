@@ -1,0 +1,132 @@
+.transcript-panel {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border-block-start: 1px solid var(--line-1);
+  background: var(--ink-1);
+}
+
+.transcript-panel > header,
+.transcript-panel__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.transcript-panel > header > div {
+  display: grid;
+  gap: var(--s1);
+}
+
+.transcript-panel__tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2);
+}
+
+.transcript-panel__tools search,
+.transcript-panel__tools form {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.transcript-panel__tools search {
+  inline-size: 100%;
+}
+
+.transcript-panel__tools input {
+  min-inline-size: 0;
+  inline-size: 100%;
+  border: 1px solid var(--line-1);
+  border-radius: var(--r1) 0 0 var(--r1);
+  background: var(--ink-0);
+  color: var(--paper-1);
+  padding-inline: var(--s3);
+}
+
+.transcript-panel__tools form .button {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.transcript-panel__error {
+  padding: var(--s2);
+  border: 1px solid var(--error);
+  border-radius: var(--r1);
+  color: var(--error);
+  font-size: var(--type-small);
+}
+
+.transcript-panel__empty {
+  min-block-size: var(--s12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  color: var(--paper-3);
+  font-size: var(--type-small);
+}
+
+.transcript-panel__meta {
+  color: var(--paper-3);
+  font-size: var(--type-micro);
+}
+
+.transcript-cues {
+  display: grid;
+  gap: var(--s1);
+  max-block-size: calc(var(--s10) * 2);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transcript-cues button {
+  inline-size: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s3);
+  padding: var(--s2);
+  border: 1px solid transparent;
+  border-radius: var(--r1);
+  background: transparent;
+  color: var(--paper-1);
+  text-align: start;
+  cursor: pointer;
+}
+
+.transcript-cues button:hover {
+  border-color: var(--line-1);
+  background: var(--ink-3);
+}
+
+.transcript-cues code {
+  color: var(--violet-2);
+  font-size: var(--type-small);
+}
+
+.transcript-cues span {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--type-small);
+}
+
+.transcript-panel__more {
+  justify-self: center;
+}
+
+.monitor-grid--source .transcript-cues {
+  max-block-size: calc(var(--s12) * 4);
+}
+
+@media (max-width: 1080px) {
+  .transcript-cues button {
+    min-block-size: 44px;
+  }
+
+  .transcript-panel__tools {
+    grid-template-columns: 1fr;
+  }
+}

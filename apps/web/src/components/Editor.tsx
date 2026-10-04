@@ -5,18 +5,18 @@ import { programDuration, sceneDuration, sceneProgramStart } from "../timeline"
 import { useEditorShortcuts } from "../useEditorShortcuts"
 import { AgentPanel } from "./AgentPanel"
 import { DeliverablesPanel } from "./DeliverablesPanel"
+import { type EditorTab, EditorTabs } from "./EditorTabs"
 import { Inspector } from "./Inspector"
 import { MediaFrame } from "./MediaFrame"
 import { ProgramMonitor } from "./ProgramMonitor"
 import { RangeControls } from "./RangeControls"
 import { ReviewPanel } from "./ReviewPanel"
+import { SessionImports } from "./SessionImports"
 import { SourceRail } from "./SourceRail"
 import { StoryPanel } from "./StoryPanel"
 import { Timeline } from "./Timeline"
+import { TranscriptPanel } from "./TranscriptPanel"
 import { ErrorBar } from "./Ui"
-
-const tabs = ["Sources", "Story", "Edit", "Agent", "Review", "Deliverables"] as const
-type Tab = (typeof tabs)[number]
 
 type EditorProps = {
   readonly project: Project
@@ -27,6 +27,7 @@ type EditorProps = {
   readonly onCommand: (command: Command) => Promise<boolean>
   readonly onRefreshProject: () => Promise<void>
   readonly onImport: (file: File, role: Source["role"]) => Promise<void>
+  readonly onSessionProject: (project: Project) => void
   readonly onDemo: () => Promise<void>
   readonly onRender: (kind: "preview" | "final") => Promise<void>
 }
@@ -40,10 +41,11 @@ export function Editor({
   onCommand,
   onRefreshProject,
   onImport,
+  onSessionProject,
   onDemo,
   onRender,
 }: EditorProps) {
-  const [tab, setTab] = useState<Tab>("Edit")
+  const [tab, setTab] = useState<EditorTab>("Edit")
   const [sourceId, setSourceId] = useState<string | null>(project.sources[0]?.id ?? null)
   const [sceneId, setSceneId] = useState<string | null>(project.scenes[0]?.id ?? null)
   const [sourceFrame, setSourceFrame] = useState(0)
@@ -108,19 +110,7 @@ export function Editor({
           </div>
           <ChevronDown size={13} />
         </div>
-        <nav className="tabs" aria-label="Workspace">
-          {tabs.map((item) => (
-            <button
-              type="button"
-              key={item}
-              className={tab === item ? "active" : ""}
-              aria-current={tab === item ? "page" : undefined}
-              onClick={() => setTab(item)}
-            >
-              {item}
-            </button>
-          ))}
-        </nav>
+        <EditorTabs active={tab} onSelect={setTab} />
         <div className="history-actions">
           <button
             type="button"
@@ -179,7 +169,10 @@ export function Editor({
             onImport={onImport}
             onDemo={onDemo}
           />
-          <div className="edit-center">
+          <div className={`edit-center ${tab === "Sources" ? "edit-center--sources" : ""}`}>
+            {tab === "Sources" ? (
+              <SessionImports key={project.id} project={project} onProject={onSessionProject} />
+            ) : null}
             <div className={`monitor-grid ${tab === "Sources" ? "monitor-grid--source" : ""}`}>
               <div>
                 <MediaFrame
@@ -198,6 +191,15 @@ export function Editor({
                   onOut={setOutFrame}
                   onAdd={() => void addScene()}
                   disabled={!source || busy}
+                />
+                <TranscriptPanel
+                  projectId={project.id}
+                  source={source}
+                  onSelectCue={(selection) => {
+                    setSourceFrame(selection.sourceFrame)
+                    setInFrame(selection.inFrame)
+                    setOutFrame(selection.outFrame)
+                  }}
                 />
               </div>
               {tab === "Edit" ? (
