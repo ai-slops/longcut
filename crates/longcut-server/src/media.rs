@@ -6,11 +6,16 @@ use std::{
 
 use serde::Deserialize;
 use tokio::{fs, process::Command, time::timeout};
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     error::{AppError, AppResult},
     model::{MediaStatus, Source, SourceRole},
 };
+
+mod derivative_pipeline;
+mod process;
+mod waveform;
 
 #[derive(Debug, Deserialize)]
 struct Probe {
@@ -42,6 +47,10 @@ pub async fn probe_source(
             .args([
                 "-v",
                 "error",
+                "-protocol_whitelist",
+                "file,pipe",
+                "-format_whitelist",
+                "mov,matroska,webm,avi,wav,flac,mp3,ogg,aac,mpegts",
                 "-show_streams",
                 "-show_format",
                 "-of",
@@ -73,7 +82,7 @@ pub async fn probe_source(
         .unwrap_or("0")
         .parse::<f64>()
         .map_err(|_| AppError::Invalid("media duration unavailable".into()))?;
-    if duration <= 0.0 {
+    if !duration.is_finite() || duration <= 0.0 {
         return Err(AppError::Invalid("media has no positive duration".into()));
     }
     let id = uuid::Uuid::new_v4().to_string();
@@ -118,110 +127,15 @@ pub async fn generate_demo(artifacts: &Path) -> AppResult<(PathBuf, String)> {
 }
 
 pub async fn derivatives(artifacts: &Path, source: &Source) -> AppResult<Source> {
-    let original = artifacts.join(artifact_name(&source.media_url)?);
-    let proxy_name = format!("{}-proxy.mp4", source.id);
-    let proxy_temp = artifacts.join(format!(".{proxy_name}.tmp.mp4"));
-    run_ffmpeg(
-        Command::new("ffmpeg")
-            .args(["-hide_banner", "-loglevel", "error", "-i"])
-            .arg(&original)
-            .args([
-                "-vf",
-                "scale=1280:-2",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "25",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                "-movflags",
-                "+faststart",
-                "-y",
-            ])
-            .arg(&proxy_temp),
-        "proxy",
-    )
-    .await?;
-    fs::rename(&proxy_temp, artifacts.join(&proxy_name)).await?;
-    let thumbnail_name = format!("{}-thumbnail.jpg", source.id);
-    let thumbnail_temp = artifacts.join(format!(".{thumbnail_name}.tmp.jpg"));
-    run_ffmpeg(
-        Command::new("ffmpeg")
-            .args(["-hide_banner", "-loglevel", "error", "-ss", "0", "-i"])
-            .arg(&original)
-            .args(["-frames:v", "1", "-vf", "scale=640:-2", "-y"])
-            .arg(&thumbnail_temp),
-        "thumbnail",
-    )
-    .await?;
-    fs::rename(&thumbnail_temp, artifacts.join(&thumbnail_name)).await?;
-    let waveform = if source.has_audio {
-        extract_waveform(&original).await?
-    } else {
-        vec![]
-    };
-    let mut ready = source.clone();
-    ready.proxy_url = Some(format!("/api/v1/media/{proxy_name}"));
-    ready.thumbnail_url = Some(format!("/api/v1/media/{thumbnail_name}"));
-    ready.waveform = waveform;
-    ready.status = MediaStatus::Ready;
-    Ok(ready)
+    derivative_pipeline::generate(artifacts, source, &CancellationToken::new()).await
 }
 
-async fn run_ffmpeg(command: &mut Command, label: &str) -> AppResult<()> {
-    command.kill_on_drop(true);
-    let output = timeout(
-        Duration::from_secs(300),
-        command.stderr(Stdio::piped()).output(),
-    )
-    .await
-    .map_err(|_| AppError::Internal(anyhow::anyhow!("{label} timed out")))??;
-    if !output.status.success() {
-        return Err(AppError::Internal(anyhow::anyhow!(
-            "{label} failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )));
-    }
-    Ok(())
-}
-
-async fn extract_waveform(path: &Path) -> AppResult<Vec<f32>> {
-    let output = timeout(
-        Duration::from_secs(120),
-        Command::new("ffmpeg")
-            .kill_on_drop(true)
-            .args(["-hide_banner", "-loglevel", "error", "-i"])
-            .arg(path)
-            .args(["-vn", "-ac", "1", "-ar", "8000", "-f", "s16le", "-"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output(),
-    )
-    .await
-    .map_err(|_| AppError::Internal(anyhow::anyhow!("waveform timed out")))??;
-    if !output.status.success() {
-        return Err(AppError::Internal(anyhow::anyhow!(
-            "waveform failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )));
-    }
-    let (pairs, _) = output.stdout.as_chunks::<2>();
-    let samples: Vec<f32> = pairs
-        .iter()
-        .map(|pair| f32::from(i16::from_le_bytes(*pair)).abs() / 32768.0)
-        .collect();
-    if samples.is_empty() {
-        return Ok(vec![]);
-    }
-    let chunk = samples.len().div_ceil(512);
-    Ok(samples
-        .chunks(chunk)
-        .map(|group| group.iter().copied().fold(0.0, f32::max))
-        .collect())
+pub async fn derivatives_with_cancel(
+    artifacts: &Path,
+    source: &Source,
+    cancel: &CancellationToken,
+) -> AppResult<Source> {
+    derivative_pipeline::generate(artifacts, source, cancel).await
 }
 
 pub async fn tool_available(name: &str) -> bool {
