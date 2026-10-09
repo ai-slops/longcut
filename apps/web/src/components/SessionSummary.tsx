@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Link2, XCircle } from "lucide-react"
 import type { SourceSessionSummary } from "../session-domain"
 import { sourceSessionAssetUrl } from "../session-links"
+import { SyncDiagnosticsPanel } from "./SyncDiagnosticsPanel"
 import { Badge } from "./Ui"
 
 function durationLabel(durationNs: string): string {
@@ -106,6 +107,7 @@ export function SessionSummary({
           <Link2 size={13} /> Verification record
         </a>
       ) : null}
+      {assetsDownloadable ? <SyncDiagnosticsPanel projectId={projectId} session={session} /> : null}
     </div>
   )
 }
