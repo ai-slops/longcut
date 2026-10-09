@@ -3,9 +3,13 @@ use crate::{
     model::{SourceRole, StreamMapping},
 };
 use longcut_session_contract::model::{
-    Binding, Package, SessionRange, Source, SourceKind, StreamKind,
+    Binding, MediaTime, Package, SessionRange, Source, SourceKind, StreamKind,
 };
-use longcut_timebase::Rounding;
+use longcut_timebase::{Rounding, SourceTime};
+use std::cmp::Ordering;
+
+#[cfg(test)]
+mod tests;
 
 pub(super) struct Plan {
     pub bindings: Vec<Binding>,
@@ -13,7 +17,66 @@ pub(super) struct Plan {
     pub session_range: SessionRange,
     pub frames: String,
     pub duration: String,
+    pub input_offset: String,
     pub role: SourceRole,
+}
+
+struct MediaSpan {
+    nanoseconds: i64,
+    frames: u64,
+}
+
+fn media_span(start: &MediaTime, end: &MediaTime, frame_rate: u32) -> AppResult<MediaSpan> {
+    let unsupported = |reason: &str| AppError::Invalid(reason.into());
+    let start_numerator = i128::from(start.ticks.get())
+        .checked_mul(i128::from(start.timebase_num))
+        .ok_or_else(|| unsupported("media range overflow"))?;
+    let end_numerator = i128::from(end.ticks.get())
+        .checked_mul(i128::from(end.timebase_num))
+        .ok_or_else(|| unsupported("media range overflow"))?;
+    let numerator = end_numerator
+        .checked_mul(i128::from(start.timebase_den))
+        .and_then(|value| {
+            start_numerator
+                .checked_mul(i128::from(end.timebase_den))
+                .and_then(|start_value| value.checked_sub(start_value))
+        })
+        .ok_or_else(|| unsupported("media range overflow"))?;
+    let denominator = i128::from(end.timebase_den)
+        .checked_mul(i128::from(start.timebase_den))
+        .ok_or_else(|| unsupported("media range overflow"))?;
+    if numerator <= 0 || denominator <= 0 {
+        return Err(unsupported("invalid media range"));
+    }
+    let micros_numerator = numerator
+        .checked_mul(1_000_000)
+        .ok_or_else(|| unsupported("media duration overflow"))?;
+    if micros_numerator % denominator != 0 {
+        return Err(unsupported(
+            "media duration cannot be adapted at FFmpeg microsecond precision",
+        ));
+    }
+    let nanos_numerator = numerator
+        .checked_mul(1_000_000_000)
+        .ok_or_else(|| unsupported("media duration overflow"))?;
+    let quotient = nanos_numerator / denominator;
+    let remainder = nanos_numerator % denominator;
+    let rounded_nanos = quotient
+        .checked_add(i128::from(remainder * 2 >= denominator))
+        .ok_or_else(|| unsupported("media duration overflow"))?;
+    let nanoseconds =
+        i64::try_from(rounded_nanos).map_err(|_| unsupported("media duration overflow"))?;
+    let frame_count = numerator
+        .checked_mul(i128::from(frame_rate))
+        .and_then(|value| value.checked_add(denominator - 1))
+        .ok_or_else(|| unsupported("frame count overflow"))?
+        / denominator;
+    let frames =
+        u64::try_from(frame_count).map_err(|_| unsupported("invalid adapter frame count"))?;
+    Ok(MediaSpan {
+        nanoseconds,
+        frames,
+    })
 }
 
 pub(super) fn build(package: &Package, source: &Source, frame_rate: u32) -> AppResult<Plan> {
@@ -58,8 +121,9 @@ pub(super) fn build(package: &Package, source: &Source, frame_rate: u32) -> AppR
     video.extend(audio);
     let mut mappings = Vec::new();
     let mut session: Option<SessionRange> = None;
-    let mut frames = 0_i128;
+    let mut frames = 0_u64;
     let mut duration_ns = 0_i64;
+    let mut media_origin: Option<SourceTime> = None;
     for binding in &video {
         let segments: Vec<_> = track
             .segments
@@ -75,25 +139,32 @@ pub(super) fn build(package: &Package, source: &Source, frame_rate: u32) -> AppR
             ));
         }
         let segment = segments[0];
-        if segment.media_range.start.ticks.get() != 0 {
-            return Err(unsupported(
-                "nonzero source PTS origin is preserved but not yet editable in the normalized editor",
-            ));
-        }
         let (start, end) = segment.session_range.bounds();
         let span = end
             .checked_sub(start)
             .ok_or_else(|| unsupported("session range overflow"))?;
-        let media_end = segment
+        let origin = segment
             .media_range
-            .end
+            .start
             .source_time()
             .map_err(|error| unsupported(&error.to_string()))?;
-        let end_ns = media_end
-            .to_session(Rounding::Nearest)
-            .map_err(|error| unsupported(&error.to_string()))?
-            .ticks();
-        if (i128::from(end_ns) - i128::from(span)).abs() > 1 {
+        if let Some(existing) = media_origin {
+            if existing
+                .compare(origin)
+                .map_err(|error| unsupported(&error.to_string()))?
+                != Ordering::Equal
+            {
+                return Err(unsupported("AV bindings have different media origins"));
+            }
+        } else {
+            media_origin = Some(origin);
+        }
+        let media_span = media_span(
+            &segment.media_range.start,
+            &segment.media_range.end,
+            frame_rate,
+        )?;
+        if (i128::from(media_span.nanoseconds) - i128::from(span)).abs() > 1 {
             return Err(unsupported(
                 "clock-drift correction is preserved but requires a retiming adapter",
             ));
@@ -104,12 +175,8 @@ pub(super) fn build(package: &Package, source: &Source, frame_rate: u32) -> AppR
             }
         } else {
             session = Some(segment.session_range.clone());
-            duration_ns = span;
-            frames = i128::from(segment.media_range.end.ticks.get())
-                .checked_mul(i128::from(segment.media_range.end.timebase_num))
-                .and_then(|value| value.checked_mul(i128::from(frame_rate)))
-                .ok_or_else(|| unsupported("frame count overflow"))?
-                / i128::from(segment.media_range.end.timebase_den);
+            duration_ns = media_span.nanoseconds;
+            frames = media_span.frames;
         }
         mappings.push(StreamMapping {
             asset_id: binding.asset_id.0.clone(),
@@ -118,7 +185,6 @@ pub(super) fn build(package: &Package, source: &Source, frame_rate: u32) -> AppR
             media_end: segment.media_range.end.clone(),
         });
     }
-    let frames = u64::try_from(frames).map_err(|_| unsupported("invalid adapter frame count"))?;
     if frames == 0 {
         return Err(unsupported(
             "source interval is shorter than one output frame",
@@ -131,6 +197,21 @@ pub(super) fn build(package: &Package, source: &Source, frame_rate: u32) -> AppR
     } else {
         SourceRole::Primary
     };
+    let origin_ns = media_origin
+        .ok_or_else(|| unsupported("source has no mapping"))?
+        .to_session(Rounding::Exact)
+        .map_err(|_| unsupported("media origin cannot be normalized without rounding"))?
+        .ticks();
+    let shifted_ns = origin_ns
+        .checked_neg()
+        .ok_or_else(|| unsupported("media origin overflow"))?;
+    if shifted_ns % 1_000 != 0 {
+        return Err(unsupported(
+            "media origin cannot be normalized at FFmpeg microsecond precision",
+        ));
+    }
+    let offset_sign = if shifted_ns < 0 { "-" } else { "" };
+    let offset_magnitude = i128::from(shifted_ns).abs();
     Ok(Plan {
         bindings: video,
         mappings,
@@ -140,6 +221,11 @@ pub(super) fn build(package: &Package, source: &Source, frame_rate: u32) -> AppR
             "{}.{:09}",
             duration_ns / 1_000_000_000,
             duration_ns % 1_000_000_000
+        ),
+        input_offset: format!(
+            "{offset_sign}{}.{:06}",
+            offset_magnitude / 1_000_000_000,
+            offset_magnitude % 1_000_000_000 / 1_000
         ),
         role,
     })
