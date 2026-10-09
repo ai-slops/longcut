@@ -1,15 +1,17 @@
 import { Film } from "lucide-react"
-import type { Command, Project } from "../domain"
+import type { Command, Moment, Project } from "../domain"
 import { useDraft } from "../useDraft"
+import { MomentsPanel } from "./MomentsPanel"
 import { Badge, Button, formatFrames, Panel, TextArea } from "./Ui"
 
 type StoryPanelProps = {
   readonly project: Project
   readonly busy: boolean
   readonly onCommand: (command: Command) => Promise<boolean>
+  readonly onReveal: (moment: Moment) => void
 }
 
-export function StoryPanel({ project, busy, onCommand }: StoryPanelProps) {
+export function StoryPanel({ project, busy, onCommand, onReveal }: StoryPanelProps) {
   const [brief, setBrief] = useDraft(project.brief, project.id)
   return (
     <div className="workspace-panel story-panel">
@@ -47,6 +49,9 @@ export function StoryPanel({ project, busy, onCommand }: StoryPanelProps) {
                 <div>
                   <strong>{scene.title}</strong>
                   <p>{scene.purpose || "No purpose written"}</p>
+                  {scene.moment ? (
+                    <Badge tone="violet">Moment v{scene.moment.version}</Badge>
+                  ) : null}
                 </div>
                 <code>
                   {formatFrames(
@@ -90,6 +95,7 @@ export function StoryPanel({ project, busy, onCommand }: StoryPanelProps) {
           )}
         </div>
       </Panel>
+      <MomentsPanel project={project} busy={busy} onCommand={onCommand} onReveal={onReveal} />
     </div>
   )
 }
