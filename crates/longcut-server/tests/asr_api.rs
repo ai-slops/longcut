@@ -216,6 +216,16 @@ async fn local_job_publishes_searchable_transcript_without_edit_revision_change(
         transcript["cues"][0]["words"].as_array().map(Vec::len),
         Some(2)
     );
+    let pool = sqlx::SqlitePool::connect_with(
+        sqlx::sqlite::SqliteConnectOptions::new().filename(data.path().join("longcut.sqlite3")),
+    )
+    .await
+    .expect("open ASR database");
+    let indexed_words: i64 = sqlx::query_scalar("SELECT count(*) FROM transcript_words")
+        .fetch_one(&pool)
+        .await
+        .expect("count indexed ASR words");
+    assert_eq!(indexed_words, 2);
     assert_eq!(
         state
             .store
