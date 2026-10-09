@@ -6,6 +6,19 @@ contract revision**, recorded in the explicitly condensed
 
 ## Overall finding
 
+### Curated source Moments checkpoint
+
+Manual Moments now persist source ranges, optional immutable transcript evidence,
+narrative roles and explicit editorial review/archive state. Reviewed visual Moments
+can be inserted as Scenes with frozen version links; audio Moments remain valid but
+cannot silently become visual Scenes. Later transcript/Moment changes do not rewrite
+existing evidence or Scene provenance. Compact exact-version history and indexed
+word lookup support this feature without repeating large quotations in every snapshot.
+See [Moment validation](moments-validation.md) and [the API contract](moments-api.md).
+This resolves the manual-Moment foundation, not automatic semantic analysis or the
+full Chapter/Beat/story graph. Older statements that all Moment entities are absent
+describe earlier checkpoints.
+
 ### Explicit ASR checkpoint-resume checkpoint
 
 ASR now persists validated chunk checkpoints, revalidates input/runtime fingerprints
@@ -22,8 +35,11 @@ Local ASR now supports bounded two-second context overlap, indexed neighboring-c
 reconciliation and persisted model-estimated word units. Source word selection is
 available without moving Output. Read-only source-session diagnostics expose exact
 declared offsets, drift, coverage gaps and overlaps with bounded output and honest
-unknown/unverifiable states. Neither feature establishes measured AV alignment or
-general playback retiming. Real two-chunk Korean speech and real package diagnostics
+unknown/unverifiable states. Neither feature establishes measured AV alignment,
+speech accuracy or general playback retiming. The current schema is v8: ASR
+publication atomically writes retained cue JSON and normalized indexed word rows, and
+legacy v7 word JSON is backfilled with transactional rollback on malformed data.
+Real two-chunk Korean speech and real package diagnostics
 were exercised; a four-sample tiny/base comparison remains directional only.
 See [timed-ASR and sync evidence](timed-asr-sync-validation.md). This supersedes older
 statements below that all word timing, overlap processing or sync diagnostics are absent.
