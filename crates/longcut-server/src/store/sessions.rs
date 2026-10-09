@@ -1,7 +1,7 @@
 use chrono::Utc;
 use sqlx::Row;
 
-use super::Store;
+use super::{Store, history_snapshot::StoredHistory};
 use crate::{
     domain,
     error::{AppError, AppResult},
@@ -144,7 +144,7 @@ impl Store {
             .fetch_one(&mut *tx)
             .await?;
         let mut project: Project = serde_json::from_str(row.try_get("state")?)?;
-        let mut history: History = serde_json::from_str(row.try_get("history")?)?;
+        let mut history = StoredHistory::parse(row.try_get("history")?)?;
         if project.revision != revision {
             return Err(AppError::Stale);
         }
@@ -196,8 +196,7 @@ impl Store {
                 "this source session is already imported".into(),
             ));
         }
-        history.undo.push(project.clone());
-        history.redo.clear();
+        history.record_edit(project.clone());
         project.sources.extend(prepared.sources.clone());
         project
             .source_sessions
@@ -207,6 +206,8 @@ impl Store {
         project.can_undo = true;
         project.can_redo = false;
         let state = serde_json::to_string(&project)?;
+        let history = history.json(&mut tx, &job.project_id).await?;
+        let result = super::history_snapshot::project_json(&project)?;
         sqlx::query("INSERT INTO source_sessions(id,project_id,record) VALUES(?,?,?)")
             .bind(&prepared.record.summary.id)
             .bind(&job.project_id)
@@ -215,7 +216,7 @@ impl Store {
             .await?;
         sqlx::query("UPDATE projects SET state=?,history=?,updated_at=? WHERE id=?")
             .bind(&state)
-            .bind(serde_json::to_string(&history)?)
+            .bind(history)
             .bind(&project.updated_at)
             .bind(&job.project_id)
             .execute(&mut *tx)
@@ -228,7 +229,7 @@ impl Store {
             .bind(&job.id)
             .execute(&mut *tx)
             .await?;
-        sqlx::query("INSERT INTO commands(project_id,command_id,request,result) VALUES(?,?,?,?)").bind(&job.project_id).bind(format!("session-import:{}", job.id)).bind(serde_json::json!({"type":"import_session","import_id":job.id,"base_revision":revision}).to_string()).bind(state).execute(&mut *tx).await?;
+        sqlx::query("INSERT INTO commands(project_id,command_id,request,result) VALUES(?,?,?,?)").bind(&job.project_id).bind(format!("session-import:{}", job.id)).bind(serde_json::json!({"type":"import_session","import_id":job.id,"base_revision":revision}).to_string()).bind(result).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(project)
     }

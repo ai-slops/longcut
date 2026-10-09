@@ -36,14 +36,14 @@ async fn v4_job_without_resume_snapshot_remains_ineligible() -> TestResult {
             &snapshot(),
         )
         .await?;
-    sqlx::query("DROP TABLE asr_checkpoints; ALTER TABLE asr_jobs DROP COLUMN checkpoint_fingerprint; ALTER TABLE asr_jobs DROP COLUMN resume_snapshot; PRAGMA user_version=4;")
+    sqlx::query("DROP TABLE transcript_words; DROP TABLE asr_checkpoints; ALTER TABLE asr_jobs DROP COLUMN checkpoint_fingerprint; ALTER TABLE asr_jobs DROP COLUMN resume_snapshot; PRAGMA user_version=4;")
         .execute(&store.pool)
         .await?;
     drop(store);
     // When
     let reopened = crate::store::Store::open(&path).await?;
     // Then
-    assert_eq!(schema_version(&reopened).await?, 6);
+    assert_eq!(schema_version(&reopened).await?, 8);
     assert!(
         !reopened
             .get_asr(&project_id, "source", &job.id)
@@ -94,7 +94,7 @@ async fn migrated_v5_job_passes_resume_preflight(shape: FingerprintShape) -> Tes
                 .await?;
         }
     }
-    sqlx::query("PRAGMA user_version=5")
+    sqlx::query("DROP TABLE transcript_words; PRAGMA user_version=5")
         .execute(&store.pool)
         .await?;
     drop(store);
@@ -105,7 +105,7 @@ async fn migrated_v5_job_passes_resume_preflight(shape: FingerprintShape) -> Tes
         .await?;
     let validated = reopened.validate_resume_checkpoints(&material).await;
     // Then
-    assert_eq!(schema_version(&reopened).await?, 6);
+    assert_eq!(schema_version(&reopened).await?, 8);
     assert!(validated.is_ok());
     let fingerprint: String = sqlx::query("SELECT checkpoint_fingerprint FROM asr_jobs WHERE id=?")
         .bind(&job.id)

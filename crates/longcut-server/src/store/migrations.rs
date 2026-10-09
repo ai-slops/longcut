@@ -14,7 +14,7 @@ impl Store {
             .fetch_one(&self.pool)
             .await?;
         match version {
-            1..=6 => return Ok(()),
+            1..=8 => return Ok(()),
             0 => {}
             _ => {
                 return Err(AppError::Invalid(
@@ -46,7 +46,7 @@ impl Store {
         let version: i64 = sqlx::query_scalar("PRAGMA user_version")
             .fetch_one(&self.pool)
             .await?;
-        if matches!(version, 2..=6) {
+        if matches!(version, 2..=8) {
             return Ok(());
         }
         if version != 1 {
@@ -79,7 +79,7 @@ impl Store {
         let version: i64 = sqlx::query_scalar("PRAGMA user_version")
             .fetch_one(&self.pool)
             .await?;
-        if version == 6 {
+        if matches!(version, 6..=8) {
             return Ok(());
         }
         if !matches!(version, 2..=5) {
@@ -124,6 +124,40 @@ impl Store {
         }
         backfill_checkpoint_fingerprints(&mut tx).await?;
         sqlx::query("PRAGMA user_version=6")
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+}
+
+impl Store {
+    pub(super) async fn migrate_moments(&self, path: &Path) -> AppResult<()> {
+        let version: i64 = sqlx::query_scalar("PRAGMA user_version")
+            .fetch_one(&self.pool)
+            .await?;
+        match version {
+            7 | 8 => return Ok(()),
+            6 => {}
+            _ => {
+                return Err(AppError::Invalid(
+                    "unsupported moment schema migration".into(),
+                ));
+            }
+        }
+        let projects: i64 = sqlx::query_scalar("SELECT count(*) FROM projects")
+            .fetch_one(&self.pool)
+            .await?;
+        if projects > 0 {
+            let backup =
+                path.with_extension(format!("before-moments-{}.sqlite3", uuid::Uuid::new_v4()));
+            sqlx::query("VACUUM INTO ?")
+                .bind(backup.to_string_lossy().as_ref())
+                .execute(&self.pool)
+                .await?;
+        }
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("CREATE TABLE IF NOT EXISTS moment_versions(project_id TEXT NOT NULL,moment_id TEXT NOT NULL,version TEXT NOT NULL,snapshot TEXT NOT NULL,PRIMARY KEY(project_id,moment_id,version)); CREATE INDEX IF NOT EXISTS moment_version_lookup ON moment_versions(project_id,moment_id,CAST(version AS INTEGER)); PRAGMA user_version=7;")
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;

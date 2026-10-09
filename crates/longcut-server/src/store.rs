@@ -14,10 +14,15 @@ use crate::{
 
 mod ai;
 mod ai_publication;
+mod history_snapshot;
 mod jobs;
 mod migrations;
+mod moment_evidence;
+mod moments;
+pub(crate) use moments::MomentVersionKey;
 mod session_records;
 mod sessions;
+mod transcript_words_migration;
 
 #[derive(Clone)]
 pub struct Store {
@@ -42,6 +47,8 @@ impl Store {
         store.migrate_sessions(path).await?;
         store.migrate_transcripts(path).await?;
         store.migrate_asr(path).await?;
+        store.migrate_moments(path).await?;
+        store.migrate_transcript_words(path).await?;
         store.recover_interrupted().await?;
         Ok(store)
     }
@@ -153,6 +160,7 @@ impl Store {
             brief: String::new(),
             sources: vec![],
             source_sessions: vec![],
+            moments: vec![],
             scenes: vec![],
             feedback: vec![],
             change_sets: vec![],
@@ -160,10 +168,7 @@ impl Store {
             can_undo: false,
             can_redo: false,
         };
-        let history = History {
-            undo: vec![],
-            redo: vec![],
-        };
+        let history = history_snapshot::StoredHistory::empty();
         sqlx::query("INSERT INTO projects(id,state,history,updated_at) VALUES(?,?,?,?)")
             .bind(&project.id)
             .bind(serde_json::to_string(&project)?)
@@ -189,7 +194,18 @@ impl Store {
                     "command_id reused with different payload".into(),
                 ));
             }
-            return Ok(serde_json::from_str(row.try_get("result")?)?);
+            let (project, compact) =
+                history_snapshot::project_from_json(&mut tx, id, row.try_get("result")?).await?;
+            if let Some(result) = compact {
+                sqlx::query("UPDATE commands SET result=? WHERE project_id=? AND command_id=?")
+                    .bind(result)
+                    .bind(id)
+                    .bind(&request.command_id)
+                    .execute(&mut *tx)
+                    .await?;
+                tx.commit().await?;
+            }
+            return Ok(project);
         }
         let row = sqlx::query("SELECT state,history FROM projects WHERE id=?")
             .bind(id)
@@ -197,18 +213,38 @@ impl Store {
             .await?
             .ok_or(AppError::NotFound)?;
         let mut project: Project = serde_json::from_str(row.try_get("state")?)?;
-        let mut history: History = serde_json::from_str(row.try_get("history")?)?;
+        let mut stored_history = history_snapshot::StoredHistory::parse(row.try_get("history")?)?;
         if project.revision != request.base_revision {
             return Err(AppError::Stale);
         }
-        domain::apply(&mut project, &mut history, request.command.clone())?;
-        project.updated_at = Utc::now().to_rfc3339();
-        project.can_undo = !history.undo.is_empty();
-        project.can_redo = !history.redo.is_empty();
+        let timestamp = Utc::now().to_rfc3339();
+        let operation = history_snapshot::HistoryOperation::from_command(&request.command);
+        let mut history = stored_history
+            .domain_history(&mut tx, id, operation)
+            .await?;
+        let context = domain::ApplyContext {
+            command_id: request.command_id.clone(),
+            revision: domain::next_revision(&project.revision)?,
+            timestamp: timestamp.clone(),
+            evidence: Self::evidence_for_command(&mut tx, &project, &request.command).await?,
+        };
+        domain::apply_with_context(
+            &mut project,
+            &mut history,
+            request.command.clone(),
+            &context,
+        )?;
+        stored_history.merge(&mut history, operation)?;
+        project.updated_at = timestamp;
+        project.can_undo = stored_history.can_undo();
+        project.can_redo = stored_history.can_redo();
+        Self::persist_moment_heads(&mut tx, &project).await?;
         let state = serde_json::to_string(&project)?;
+        let history = stored_history.json(&mut tx, id).await?;
+        let result = history_snapshot::project_json(&project)?;
         sqlx::query("UPDATE projects SET state=?,history=?,updated_at=? WHERE id=?")
             .bind(&state)
-            .bind(serde_json::to_string(&history)?)
+            .bind(history)
             .bind(&project.updated_at)
             .bind(id)
             .execute(&mut *tx)
@@ -217,7 +253,7 @@ impl Store {
             .bind(id)
             .bind(&request.command_id)
             .bind(request_json)
-            .bind(&state)
+            .bind(result)
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;

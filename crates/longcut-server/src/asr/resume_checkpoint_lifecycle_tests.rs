@@ -94,7 +94,7 @@ async fn store_reopen_preserves_checkpoint_and_marks_job_resume_eligible() -> Te
     let version: i64 = sqlx::query_scalar("PRAGMA user_version")
         .fetch_one(&reopened.pool)
         .await?;
-    assert_eq!(version, 6);
+    assert_eq!(version, 8);
     assert_eq!(recovered.status, AsrJobStatus::Failed);
     assert!(recovered.resume_eligible);
     assert_eq!(recovered.progress.completed_chunks, 1);

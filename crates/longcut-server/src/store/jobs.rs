@@ -2,6 +2,7 @@ use chrono::Utc;
 use sqlx::Row;
 
 use super::Store;
+use super::history_snapshot::StoredHistory;
 use crate::{
     domain,
     error::{AppError, AppResult},
@@ -111,21 +112,21 @@ impl Store {
             .await?
             .ok_or(AppError::NotFound)?;
         let mut project: Project = serde_json::from_str(row.try_get("state")?)?;
-        let mut history: History = serde_json::from_str(row.try_get("history")?)?;
+        let mut history = StoredHistory::parse(row.try_get("history")?)?;
         if semantic {
-            history.undo.push(project.clone());
-            history.redo.clear();
+            history.record_edit(project.clone());
         }
         update(&mut project)?;
         if semantic {
             project.revision = domain::next_revision(&project.revision)?;
         }
         project.updated_at = Utc::now().to_rfc3339();
-        project.can_undo = !history.undo.is_empty();
-        project.can_redo = !history.redo.is_empty();
+        project.can_undo = history.can_undo();
+        project.can_redo = history.can_redo();
+        let history = history.json(&mut tx, id).await?;
         sqlx::query("UPDATE projects SET state=?,history=?,updated_at=? WHERE id=?")
             .bind(serde_json::to_string(&project)?)
-            .bind(serde_json::to_string(&history)?)
+            .bind(history)
             .bind(&project.updated_at)
             .bind(id)
             .execute(&mut *tx)

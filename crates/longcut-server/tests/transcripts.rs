@@ -119,7 +119,7 @@ async fn version_three_database_migrates_nullable_word_storage() -> TestResult {
             .iter()
             .any(|row| row.get::<String, _>("name") == "words")
     );
-    assert_eq!(version, 6);
+    assert_eq!(version, 8);
     assert_eq!(cue.get::<String, _>("id"), "legacy-cue");
     assert_eq!(cue.get::<String, _>("start_frame"), "3");
     assert_eq!(cue.get::<String, _>("end_frame"), "18");
@@ -155,7 +155,7 @@ async fn version_four_database_migrates_nullable_asr_resume_storage() -> TestRes
             .fetch_one(&pool)
             .await?;
     // Then
-    assert_eq!(version, 6);
+    assert_eq!(version, 8);
     assert_eq!(snapshot, None);
     Ok(())
 }

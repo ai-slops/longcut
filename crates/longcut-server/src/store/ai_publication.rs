@@ -1,12 +1,15 @@
 use chrono::Utc;
 use sqlx::Row;
 
-use super::Store;
+use super::{
+    Store,
+    history_snapshot::{HistoryOperation, StoredHistory},
+};
 use crate::{
     ai::{AiProposal, AiRun, AiRunStatus, into_operations},
     domain,
     error::{AppError, AppResult},
-    model::{Command, CommandRequest, History, Project},
+    model::{Command, CommandRequest, Project},
 };
 
 impl Store {
@@ -57,15 +60,21 @@ impl Store {
             command,
         };
         let request_json = serde_json::to_string(&request)?;
-        let mut history: History = serde_json::from_str(project_row.try_get("history")?)?;
+        let mut stored_history = StoredHistory::parse(project_row.try_get("history")?)?;
+        let mut history = stored_history
+            .domain_history(&mut tx, &run.project_id, HistoryOperation::Edit)
+            .await?;
         domain::apply(&mut project, &mut history, request.command.clone())?;
+        stored_history.merge(&mut history, HistoryOperation::Edit)?;
         project.updated_at = Utc::now().to_rfc3339();
-        project.can_undo = !history.undo.is_empty();
-        project.can_redo = !history.redo.is_empty();
+        project.can_undo = stored_history.can_undo();
+        project.can_redo = stored_history.can_redo();
         let state_json = serde_json::to_string(&project)?;
+        let history_json = stored_history.json(&mut tx, &run.project_id).await?;
+        let result_json = super::history_snapshot::project_json(&project)?;
         sqlx::query("UPDATE projects SET state=?,history=?,updated_at=? WHERE id=?")
             .bind(&state_json)
-            .bind(serde_json::to_string(&history)?)
+            .bind(history_json)
             .bind(&project.updated_at)
             .bind(&run.project_id)
             .execute(&mut *tx)
@@ -74,7 +83,7 @@ impl Store {
             .bind(&run.project_id)
             .bind(&run.id)
             .bind(request_json)
-            .bind(state_json)
+            .bind(result_json)
             .execute(&mut *tx)
             .await?;
         run.change_set_id = project
