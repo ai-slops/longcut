@@ -13,7 +13,8 @@ use crate::{
 use super::{
     AsrJob, AsrOwnershipPolicy, AsrTimingQuality, AsrTranscriptMetadata, Service, SourceSnapshot,
     audio,
-    conversion::{ChunkLayout, CueAccumulator, OVERLAP_SECONDS, merge_language},
+    checkpoint::Checkpoint,
+    conversion::{ChunkLayout, OVERLAP_SECONDS, merge_language},
     whisper,
 };
 
@@ -79,8 +80,8 @@ async fn run(context: &WorkContext<'_>) -> AppResult<()> {
         .store
         .start_asr(&context.job.id, total_chunks)
         .await?;
-    let work = context.service.work_root.join(&context.job.id);
-    tokio::fs::create_dir(&work).await?;
+    let work = attempt_work_path(&context.service.work_root, &context.job.id);
+    tokio::fs::create_dir_all(&work).await?;
     let source_path = context
         .state
         .artifacts
@@ -130,15 +131,30 @@ async fn run(context: &WorkContext<'_>) -> AppResult<()> {
     Ok(())
 }
 
+fn attempt_work_path(root: &Path, job_id: &str) -> std::path::PathBuf {
+    root.join(job_id).join(uuid::Uuid::new_v4().to_string())
+}
+
 async fn process_chunks(context: ChunkContext<'_>) -> AppResult<(Vec<Cue>, Option<String>)> {
-    let mut cues = CueAccumulator::new();
-    let mut observed_language = None;
     let layout = ChunkLayout {
         chunk_frames: context.chunk_frames,
         duration_frames: context.work.source.duration_frames,
         frame_rate: context.work.source.frame_rate,
     };
-    for index in 0..context.total_chunks {
+    let replay = context
+        .work
+        .state
+        .store
+        .load_asr_replay(&context.work.job.id, layout)
+        .await?;
+    if replay.next_index > context.total_chunks {
+        return Err(AppError::Conflict(
+            "ASR checkpoint count exceeds source chunks".into(),
+        ));
+    }
+    let mut cues = replay.accumulator;
+    let mut observed_language = replay.result_language;
+    for index in replay.next_index..context.total_chunks {
         let window = layout.window(index)?;
         let (inference_start, inference_end, _, _) = window.bounds();
         let wav = context.work_path.join(format!("chunk-{index}.wav"));
@@ -165,15 +181,16 @@ async fn process_chunks(context: ChunkContext<'_>) -> AppResult<(Vec<Cue>, Optio
             context.work.cancellation,
         )
         .await?;
+        let checkpoint = Checkpoint::from_output(index, window.bounds(), &output)?;
         observed_language = merge_language(observed_language, output.result.language.clone());
         cues.append(output, window)?;
-        cleanup_chunk(&wav, &prefix).await?;
         context
             .work
             .state
             .store
-            .progress_asr(&context.work.job.id, index + 1)
+            .checkpoint_asr(&context.work.job.id, &checkpoint)
             .await?;
+        cleanup_chunk(&wav, &prefix).await?;
     }
     Ok((cues.into_cues()?, observed_language))
 }
@@ -200,3 +217,7 @@ async fn acquire(
             .map_err(|error| AppError::Internal(anyhow::anyhow!("ASR limiter closed: {error}"))),
     }
 }
+
+#[cfg(test)]
+#[path = "worker_tests.rs"]
+mod tests;

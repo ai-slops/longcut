@@ -1,6 +1,6 @@
 use std::{path::Path, time::Duration};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio_util::sync::CancellationToken;
 
@@ -11,25 +11,25 @@ use super::{AsrConfig, AsrLanguage, process};
 const WHISPER_TIMEOUT: Duration = Duration::from_secs(1800);
 const MAX_JSON_BYTES: u64 = 16 * 1024 * 1024;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(super) struct WhisperOutput {
     pub transcription: Vec<WhisperSegment>,
     pub result: WhisperResult,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(super) struct WhisperSegment {
     pub offsets: WhisperOffsets,
     pub text: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(super) struct WhisperOffsets {
     pub from: u64,
     pub to: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(super) struct WhisperResult {
     pub language: Option<String>,
 }
