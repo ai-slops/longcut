@@ -141,6 +141,20 @@ frame-synchronized A/B playback.
 ### Primitive Showcase
 The `/showcase` query route renders every primitive in default, selected, disabled, empty, processing, and error states. It shares production CSS and is the implementation harness for mobile/tablet/desktop checks.
 
+### WordTiming
+- **Structure**: an optional sibling disclosure beside an ASR cue action; expanded model-estimated word units never nest buttons inside the cue button.
+- **States**: collapsed, expanded, selectable positive interval, and preserved non-selectable zero-duration punctuation.
+- **Trust**: always labels timing as model estimated and never describes it as verified or forced alignment.
+- **Accessibility**: the disclosure keeps a stable accessible name and exposes state with `aria-expanded`; visible trust copy uses `--type-small`, and word controls provide 44px targets on narrow or coarse-pointer layouts.
+- **Layout**: expanded details raise the cue list to a bounded readable scroll height without forcing viewport-inline overflow.
+
+### SyncDiagnostics
+- **Structure**: a lazy disclosure on committed source sessions, a declared-metadata disclaimer, exact coverage-union summary, unsupported mappings, and independently paged gaps, same-stream overlaps, and segment diagnostics.
+- **States**: collapsed, loading, loaded, ordinary unavailable/error, exact coverage, unknown coverage, and unverifiable calculation.
+- **Scale**: render at most 40 rows per unsupported mapping, gap, overlap, or segment section initially, then add 40 per explicit request; long range sections may collapse, but every declared item remains reachable.
+- **Trust**: rational values stay numerator/denominator strings; coverage is the union of declared TimeMap ranges, not all-stream or verified media coverage.
+- **Accessibility**: the persistent disclosure button labels the section in collapsed and expanded states; diagnostic values use at least `--type-small`, and range summaries provide 44px targets on narrow or coarse-pointer layouts.
+
 ## 6. Motion & Interaction
 
 | Token | Duration | Easing | Usage |
