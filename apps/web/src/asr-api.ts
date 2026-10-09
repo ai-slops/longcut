@@ -40,4 +40,9 @@ export const asrApi = {
       () => client.post(`${jobPath(route)}/cancel`, requestOptions(route.signal)).json(),
       AsrJobSchema,
     ),
+  resume: (route: AsrRoute): Promise<AsrJob> =>
+    request(
+      () => client.post(`${jobPath(route)}/resume`, requestOptions(route.signal)).json(),
+      AsrJobSchema,
+    ),
 }
