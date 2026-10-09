@@ -119,12 +119,44 @@ async fn version_three_database_migrates_nullable_word_storage() -> TestResult {
             .iter()
             .any(|row| row.get::<String, _>("name") == "words")
     );
-    assert_eq!(version, 4);
+    assert_eq!(version, 6);
     assert_eq!(cue.get::<String, _>("id"), "legacy-cue");
     assert_eq!(cue.get::<String, _>("start_frame"), "3");
     assert_eq!(cue.get::<String, _>("end_frame"), "18");
     assert_eq!(cue.get::<String, _>("text"), "legacy text");
     assert_eq!(cue.get::<Option<String>, _>("words"), None);
+    Ok(())
+}
+
+#[tokio::test]
+async fn version_four_database_migrates_nullable_asr_resume_storage() -> TestResult {
+    // Given
+    let root = tempfile::tempdir()?;
+    let path = root.path().join("legacy-v4.sqlite3");
+    let options = sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(&path)
+        .create_if_missing(true);
+    let pool = sqlx::SqlitePool::connect_with(options).await?;
+    sqlx::query("CREATE TABLE projects(id TEXT PRIMARY KEY,state TEXT NOT NULL,history TEXT NOT NULL,updated_at TEXT NOT NULL); CREATE TABLE transcript_cues(id TEXT PRIMARY KEY,transcript_id TEXT NOT NULL,ordinal INTEGER NOT NULL,start_frame TEXT NOT NULL,end_frame TEXT NOT NULL,text TEXT NOT NULL,words TEXT); CREATE TABLE asr_jobs(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,source_id TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL,base_transcript_id TEXT,created_at TEXT NOT NULL); INSERT INTO asr_jobs VALUES('legacy','project','source','{\"id\":\"legacy\",\"project_id\":\"project\",\"source_id\":\"source\",\"status\":\"failed\",\"progress\":{\"completed_chunks\":0,\"total_chunks\":0},\"language\":\"ko\",\"engine\":\"whisper.cpp\",\"model\":\"model\",\"created_at\":\"now\",\"updated_at\":\"now\",\"transcript_id\":null,\"error\":null}', 'failed',NULL,'now'); PRAGMA user_version=4;")
+        .execute(&pool)
+        .await?;
+    pool.close().await;
+    // When
+    let store = Store::open(&path).await?;
+    drop(store);
+    let pool =
+        sqlx::SqlitePool::connect_with(sqlx::sqlite::SqliteConnectOptions::new().filename(&path))
+            .await?;
+    let version: i64 = sqlx::query_scalar("PRAGMA user_version")
+        .fetch_one(&pool)
+        .await?;
+    let snapshot: Option<String> =
+        sqlx::query_scalar("SELECT resume_snapshot FROM asr_jobs WHERE id='legacy'")
+            .fetch_one(&pool)
+            .await?;
+    // Then
+    assert_eq!(version, 6);
+    assert_eq!(snapshot, None);
     Ok(())
 }
 
