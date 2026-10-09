@@ -28,6 +28,7 @@ pub(super) fn insert(project: &mut Project, operation: &Operation) -> AppResult<
         caption: String::new(),
         locked: false,
         manual: false,
+        moment: None,
     });
     Ok(())
 }

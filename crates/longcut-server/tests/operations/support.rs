@@ -93,6 +93,7 @@ pub(super) fn fixture_project() -> Project {
         updated_at: String::new(),
         brief: String::new(),
         source_sessions: vec![],
+        moments: vec![],
         sources: vec![Source {
             id: "source".into(),
             name: "source.mp4".into(),
@@ -119,6 +120,7 @@ pub(super) fn fixture_project() -> Project {
             caption: String::new(),
             locked: false,
             manual: false,
+            moment: None,
         }],
         feedback: vec![],
         change_sets: vec![],

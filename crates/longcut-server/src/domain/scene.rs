@@ -22,6 +22,7 @@ pub(super) fn insert(
         caption: String::new(),
         locked: false,
         manual: true,
+        moment: None,
     });
     Ok(())
 }
