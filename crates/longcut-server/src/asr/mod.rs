@@ -16,8 +16,8 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 pub use config::AsrConfig;
 pub(crate) use types::SourceSnapshot;
 pub use types::{
-    AsrJob, AsrJobStatus, AsrLanguage, AsrProgress, AsrRuntimeStatus, AsrTranscriptMetadata,
-    StartAsr,
+    AsrJob, AsrJobStatus, AsrLanguage, AsrOwnershipPolicy, AsrProgress, AsrRuntimeStatus,
+    AsrTimingQuality, AsrTranscriptMetadata, StartAsr,
 };
 
 use tokio::sync::{Mutex, Semaphore};

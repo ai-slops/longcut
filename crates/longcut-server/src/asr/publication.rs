@@ -72,9 +72,10 @@ impl Store {
         for (ordinal, cue) in cues.iter().enumerate() {
             let ordinal = i64::try_from(ordinal)
                 .map_err(|_| AppError::Invalid("cue count overflow".into()))?;
-            sqlx::query("INSERT INTO transcript_cues(id,transcript_id,ordinal,start_frame,end_frame,text) VALUES(?,?,?,?,?,?)")
+            let words = cue.words.as_ref().map(serde_json::to_string).transpose()?;
+            sqlx::query("INSERT INTO transcript_cues(id,transcript_id,ordinal,start_frame,end_frame,text,words) VALUES(?,?,?,?,?,?,?)")
                 .bind(&cue.id).bind(&transcript_id).bind(ordinal).bind(&cue.start_frame)
-                .bind(&cue.end_frame).bind(&cue.text).execute(&mut *tx).await?;
+                .bind(&cue.end_frame).bind(&cue.text).bind(words).execute(&mut *tx).await?;
         }
         let mut ready: AsrJob = serde_json::from_str(persisted.try_get("job")?)?;
         ready.status = AsrJobStatus::Ready;

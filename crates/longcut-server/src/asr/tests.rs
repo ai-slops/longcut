@@ -1,12 +1,37 @@
 use crate::{
     model::{CreateProject, MediaStatus, Source, SourceRole},
     store::Store,
-    transcript::{Cue, ImportTranscript, Search},
+    transcript::{Cue, ImportTranscript, Search, Word},
 };
 
 use super::{AsrLanguage, AsrTranscriptMetadata};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn legacy_asr_metadata_deserializes_with_honest_defaults() -> TestResult {
+    // Given
+    let json = serde_json::json!({
+        "engine": "whisper.cpp",
+        "model": "legacy.bin",
+        "requested_language": "ko",
+        "result_language": "ko"
+    });
+    // When
+    let metadata: AsrTranscriptMetadata = serde_json::from_value(json)?;
+    // Then
+    assert_eq!(metadata.chunk_seconds, 0);
+    assert_eq!(metadata.overlap_seconds, 0);
+    assert_eq!(
+        metadata.ownership_policy,
+        super::AsrOwnershipPolicy::LegacyChunkBounds
+    );
+    assert_eq!(
+        metadata.timing_quality,
+        super::AsrTimingQuality::ModelEstimated
+    );
+    Ok(())
+}
 
 async fn fixture(path: &std::path::Path) -> Result<(Store, String), Box<dyn std::error::Error>> {
     let store = Store::open(path).await?;
@@ -108,12 +133,17 @@ async fn publication_rejects_a_newer_manual_transcript_without_partial_write() -
                 start_frame: "0".into(),
                 end_frame: "30".into(),
                 text: "asr".into(),
+                words: None,
             }],
             AsrTranscriptMetadata {
                 engine: "whisper.cpp".into(),
                 model: "model.gguf".into(),
                 requested_language: AsrLanguage::Ko,
                 result_language: Some("ko".into()),
+                chunk_seconds: 600,
+                overlap_seconds: 2,
+                ownership_policy: super::AsrOwnershipPolicy::HalfOpenMidpoint,
+                timing_quality: super::AsrTimingQuality::ModelEstimated,
             },
         )
         .await;
@@ -125,5 +155,60 @@ async fn publication_rejects_a_newer_manual_transcript_without_partial_write() -
         .ok_or("manual transcript")?;
     assert_eq!(current.id, manual.id);
     assert_eq!(current.cue_count, 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn asr_words_persist_through_query_and_store_reopen() -> TestResult {
+    // Given
+    let root = tempfile::tempdir()?;
+    let path = root.path().join("store.sqlite3");
+    let (store, project_id) = fixture(&path).await?;
+    let (job, _) = store
+        .enqueue_asr(&project_id, "source", AsrLanguage::Ko, "model.gguf")
+        .await?;
+    let job = store.start_asr(&job.id, 1).await?;
+    let word_id = uuid::Uuid::new_v4().to_string();
+    store
+        .publish_asr(
+            &job,
+            &[Cue {
+                id: uuid::Uuid::new_v4().to_string(),
+                start_frame: "3".into(),
+                end_frame: "18".into(),
+                text: "저장 단어".into(),
+                words: Some(vec![Word {
+                    id: word_id.clone(),
+                    start_frame: "3".into(),
+                    end_frame: "18".into(),
+                    text: "저장".into(),
+                }]),
+            }],
+            AsrTranscriptMetadata {
+                engine: "whisper.cpp".into(),
+                model: "model.gguf".into(),
+                requested_language: AsrLanguage::Ko,
+                result_language: Some("ko".into()),
+                chunk_seconds: 600,
+                overlap_seconds: 2,
+                ownership_policy: super::AsrOwnershipPolicy::HalfOpenMidpoint,
+                timing_quality: super::AsrTimingQuality::ModelEstimated,
+            },
+        )
+        .await?;
+    drop(store);
+    // When
+    let reopened = Store::open(&path).await?;
+    let transcript = reopened
+        .transcript(&project_id, "source", Search::default())
+        .await?
+        .ok_or("ASR transcript")?;
+    // Then
+    let words = transcript.cues[0].words.as_ref().ok_or("ASR words")?;
+    assert_eq!(words[0].id, word_id);
+    assert_eq!(
+        (words[0].start_frame.as_str(), words[0].end_frame.as_str()),
+        ("3", "18")
+    );
     Ok(())
 }

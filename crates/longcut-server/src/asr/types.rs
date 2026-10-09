@@ -98,6 +98,29 @@ pub struct AsrTranscriptMetadata {
     pub model: String,
     pub requested_language: AsrLanguage,
     pub result_language: Option<String>,
+    #[serde(default)]
+    pub chunk_seconds: u32,
+    #[serde(default)]
+    pub overlap_seconds: u32,
+    #[serde(default)]
+    pub ownership_policy: AsrOwnershipPolicy,
+    #[serde(default)]
+    pub timing_quality: AsrTimingQuality,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AsrOwnershipPolicy {
+    #[default]
+    LegacyChunkBounds,
+    HalfOpenMidpoint,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AsrTimingQuality {
+    #[default]
+    ModelEstimated,
 }
 
 #[derive(Debug)]
