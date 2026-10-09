@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Camera, Operation, Pin, Project, RenderKind, SourceRole};
+use super::{
+    Camera, MomentEvidenceSelection, MomentNarrativeRole, MomentReviewStatus, Operation, Pin,
+    Project, RenderKind, SourceRole,
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CommandRequest {
@@ -10,7 +13,7 @@ pub struct CommandRequest {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
     SetBrief {
         brief: String,
@@ -57,6 +60,44 @@ pub enum Command {
     LockScene {
         scene_id: String,
         locked: bool,
+    },
+    CreateMoment {
+        source_id: String,
+        start_frame: String,
+        end_frame: String,
+        label: String,
+        note: String,
+        narrative_role: MomentNarrativeRole,
+        evidence: Option<MomentEvidenceSelection>,
+    },
+    UpdateMoment {
+        moment_id: String,
+        expected_moment_version: String,
+        source_id: String,
+        start_frame: String,
+        end_frame: String,
+        label: String,
+        note: String,
+        narrative_role: MomentNarrativeRole,
+        evidence: Option<MomentEvidenceSelection>,
+    },
+    ReviewMoment {
+        moment_id: String,
+        expected_moment_version: String,
+        review_status: MomentReviewStatus,
+    },
+    ArchiveMoment {
+        moment_id: String,
+        expected_moment_version: String,
+    },
+    RestoreMoment {
+        moment_id: String,
+        expected_moment_version: String,
+    },
+    InsertSceneFromMoment {
+        moment_id: String,
+        expected_moment_version: String,
+        title: String,
     },
     CreateFeedback {
         scene_id: String,
