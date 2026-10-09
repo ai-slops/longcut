@@ -18,6 +18,7 @@ pub fn router(state: AppState) -> Router {
             "/api/v1",
             Router::new()
                 .route("/health", get(health))
+                .route("/asr/status", get(crate::asr::http::status))
                 .route("/ai/providers", get(crate::ai::http::providers))
                 .route("/codex/status", get(crate::ai::http::status))
                 .route("/codex/login", post(crate::ai::http::login))
@@ -76,6 +77,18 @@ pub fn router(state: AppState) -> Router {
                 .route(
                     "/projects/{id}/sources/{source_id}/transcript",
                     get(crate::transcript::get),
+                )
+                .route(
+                    "/projects/{id}/sources/{source_id}/asr",
+                    post(crate::asr::http::start),
+                )
+                .route(
+                    "/projects/{id}/sources/{source_id}/asr/{job_id}",
+                    get(crate::asr::http::get),
+                )
+                .route(
+                    "/projects/{id}/sources/{source_id}/asr/{job_id}/cancel",
+                    post(crate::asr::http::cancel),
                 )
                 .route(
                     "/projects/{id}/renders",
