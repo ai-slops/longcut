@@ -6,6 +6,23 @@ contract revision**, recorded in the explicitly condensed
 
 ## Overall finding
 
+### Local ASR and nonzero-origin integration checkpoint
+
+Local whisper.cpp jobs now support Korean/English/automatic language selection,
+bounded sequential audio chunks, progress, cancellation, interrupted-job recovery,
+and atomic immutable transcript publication. The UI connects those jobs to source
+search and explicitly marks machine-generated text as unverified. Real English and
+Korean speech were processed through the server and browser, not just a fake CLI.
+
+Supported continuous package sources can now have a common nonzero AV origin;
+the adapter normalizes it while retaining original mapping endpoints. Interior
+subranges, unequal AV origins, discontinuities and drift remain unsupported.
+
+A three-hour synthetic audio import/proxy and 360-chunk ASR cancellation check
+passed. This does not replace real-broadcast acceptance or Korean accuracy testing.
+See [the evidence and explicit limitations](asr-validation.md). These facts supersede
+earlier statements below that ASR or all nonzero-origin adaptation are absent.
+
 ### Integration checkpoint: 2026-10-03
 
 This checkpoint supersedes the historical implementation and tool-availability
