@@ -39,6 +39,14 @@ local-ASR summaries remain readable: absent overlap metadata defaults to
 and `timing_quality: "model_estimated"`. Zero chunk size means historical metadata
 was not recorded, not that inference used zero-length chunks.
 
+Schema v8 keeps cue `words` JSON for API and legacy compatibility and also stores
+each ASR word in the indexed `transcript_words` table. The unique
+`(transcript_id, word_id)` key supports bounded Moment evidence lookup without
+scanning every cue JSON array. Migration from v7 streams a bounded, ordered backfill
+without rewriting cue JSON; malformed legacy word payloads fail transactionally and
+leave the v7 database plus a pre-migration backup intact. Manual subtitles create no
+indexed words.
+
 Word coordinates use the same half-open source-frame space as cues, except a model
 may emit a zero-duration unit with equal start/end frames. Those values are preserved
 without inventing duration. Word timing quality is always `model_estimated`; it is

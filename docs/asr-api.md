@@ -187,6 +187,9 @@ still current. A manual import or another publication during processing makes th
 job `failed` and leaves the newer transcript untouched. Failure/cancellation never
 publishes a partial transcript. Transcript publication does not change the project
 edit revision or command history.
+The same publication transaction writes both compatibility `transcript_cues.words`
+JSON and normalized `transcript_words` index rows, so readers never observe a cue
+without its indexed ASR words.
 
 After whisper JSON parses and the overlap accumulator accepts a chunk, the server
 stores that validated JSON, its canonical inference/owner bounds, and progress in one
@@ -201,9 +204,11 @@ policy-incompatible checkpoints return `409` without queueing the job. Successfu
 transcript publication deletes all job checkpoints in the same transaction. Failed,
 cancelled, and restart-interrupted jobs retain them.
 
-The current project database schema is v6. Its upgrade from v5 backfills missing
-checkpoint fingerprints from bounded, ordered checkpoint reads. Resume snapshots
-remain a v5-origin capability, so pre-v5 jobs without one stay ineligible.
+The current project database schema is v8. The v6 upgrade from v5 backfills missing
+checkpoint fingerprints from bounded, ordered checkpoint reads; v7 adds immutable
+Moment versions; v8 transactionally backfills indexed transcript words while retaining
+the compatibility JSON. Resume snapshots remain a v5-origin capability, so pre-v5
+jobs without one stay ineligible.
 
 ## Error envelope
 
