@@ -12,7 +12,10 @@ heuristic, not proof of recognition accuracy or independently verified alignment
 Words have stable IDs and source-frame ranges. Up to twelve units form a readable
 cue; word timing survives SQLite reopening and paginated transcript search. Existing
 subtitle imports and populated version-3 databases retain their cue text and have
-no invented word timing. The schema migration adds nullable word storage.
+no invented word timing. Schema v8 retains nullable cue JSON while transactionally
+backfilling the normalized, indexed `transcript_words` table from populated v7 data.
+Malformed backfill rolls back without rewriting transcript contents; manual subtitles
+still have no invented word rows.
 
 Zero-duration model units remain non-selectable in a positive-duration cue. If a
 nonempty zero-only group cannot form a valid cue, the job fails explicitly rather
