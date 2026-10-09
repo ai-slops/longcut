@@ -83,7 +83,7 @@ impl Store {
         ready.transcript_id = Some(transcript_id);
         ready.updated_at = Utc::now().to_rfc3339();
         let changed =
-            sqlx::query("UPDATE asr_jobs SET job=?,status='ready' WHERE id=? AND status='running'")
+            sqlx::query("UPDATE asr_jobs SET job=?,status='ready',checkpoint_fingerprint='' WHERE id=? AND status='running'")
                 .bind(serde_json::to_string(&ready)?)
                 .bind(&job.id)
                 .execute(&mut *tx)
@@ -92,6 +92,10 @@ impl Store {
         if changed != 1 {
             return Err(AppError::Conflict("ASR job is no longer running".into()));
         }
+        sqlx::query("DELETE FROM asr_checkpoints WHERE job_id=?")
+            .bind(&job.id)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(ready)
     }
