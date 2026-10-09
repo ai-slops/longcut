@@ -65,10 +65,11 @@ accepted. A source can have only one `queued` or `running` ASR job.
 Success returns `202 Accepted` with an `AsrJob`. Poll only while its status is
 `queued` or `running`.
 
-## Poll and cancel
+## Poll, cancel, and explicitly resume
 
 - `GET /api/v1/projects/{project_id}/sources/{source_id}/asr/{job_id}`
 - `POST /api/v1/projects/{project_id}/sources/{source_id}/asr/{job_id}/cancel`
+- `POST /api/v1/projects/{project_id}/sources/{source_id}/asr/{job_id}/resume`
 
 Both return:
 
@@ -89,14 +90,35 @@ type AsrJob = {
   updated_at: string; // RFC 3339
   transcript_id: string | null;
   error: string | null;
+  resume_eligible: boolean;
 };
 ```
 
 Cancellation is idempotent for terminal jobs. For an active job the server first
 persists `cancelled`, then signals the worker. An active FFmpeg or whisper.cpp child
-is killed and reaped. No transcript is published. A server restart converts every
-persisted `queued` or `running` job to `failed`; interrupted work is not silently
-resumed.
+is killed and reaped. No transcript is published. `resume_eligible` is true only for
+a `failed` or `cancelled` schema-v5 job with a persisted resume snapshot. Legacy jobs
+and `queued`, `running`, or `ready` jobs report false.
+
+Resume has no request body and returns `202 Accepted` with the same job ID reset to
+`queued`. It never starts automatically: a server restart still converts persisted
+`queued` or `running` jobs to `failed`, preserves validated checkpoints, and waits
+for this explicit endpoint. A resume request returns `409 conflict` while the old
+in-process worker is still stopping. Worker registration never replaces an occupied
+entry, so old and resumed workers cannot overlap. Concurrent requests permit exactly
+one transition; another active job on the source also returns `409`.
+
+Every new job privately snapshots streamed SHA-256 digests for the managed source,
+configured model, and configured CLI executable, plus the source media URL, duration
+frames, project frame rate, requested language, chunk/overlap settings, and conversion
+and CLI-argument policy versions. These digests are not returned by the API. Before
+resume, the server re-hashes all three files with a bounded buffer outside the SQLite
+transaction. Inside the resume transaction it requires an exact snapshot match,
+unchanged ready source metadata, and the original base transcript version. Any source,
+model, CLI, policy, or transcript change returns `409` without changing job state.
+The source, model, and CLI executable therefore must remain immutable while a job is
+active. The CLI digest covers the configured wrapper/executable file only; it does not
+guarantee that dynamically linked libraries or other runtime dependencies are unchanged.
 
 ## Published transcript
 
@@ -166,6 +188,23 @@ job `failed` and leaves the newer transcript untouched. Failure/cancellation nev
 publishes a partial transcript. Transcript publication does not change the project
 edit revision or command history.
 
+After whisper JSON parses and the overlap accumulator accepts a chunk, the server
+stores that validated JSON, its canonical inference/owner bounds, and progress in one
+SQLite transaction. A checkpoint is limited to 16 MiB and all checkpoints for one job
+to 128 MiB; both limits are enforced inside the transaction. Resume requires indexes
+starting at zero without gaps, recomputes every canonical window, parses every payload,
+and sequentially replays it through the same accumulator limits. This reconstructs the
+immediately previous chunk state before invoking whisper only for remaining chunks.
+Consequently resumed output has the same cue/word text and timing as uninterrupted
+execution; newly generated immutable UUIDs may differ. Corrupt, gapped, oversized, or
+policy-incompatible checkpoints return `409` without queueing the job. Successful
+transcript publication deletes all job checkpoints in the same transaction. Failed,
+cancelled, and restart-interrupted jobs retain them.
+
+The current project database schema is v6. Its upgrade from v5 backfills missing
+checkpoint fingerprints from bounded, ordered checkpoint reads. Resume snapshots
+remain a v5-origin capability, so pre-v5 jobs without one stay ineligible.
+
 ## Error envelope
 
 Errors use the normal backend shape:
@@ -176,7 +215,9 @@ Errors use the normal backend shape:
 
 - `404 not_found`: project, source, or job does not match the route.
 - `409 conflict`: runtime unavailable, source unsuitable, active-job collision,
-  cancellation/publication race, or transcript/source changed before publication.
+  cancellation/publication race, in-process worker still stopping, ineligible resume,
+  changed resume inputs/runtime/policy/transcript, invalid checkpoint replay, or
+  transcript/source changed before publication.
 - `422 invalid_input`: malformed JSON, unsupported language, invalid persisted media
   bounds, malformed/oversized whisper output, a zero-duration-only cue group, a cue
   over 16 KiB, aggregate retained cue text over 32 MiB, or a word/candidate/count
@@ -213,7 +254,7 @@ propagated as job failures. Final work-directory cleanup failures are logged wit
 job ID and path; they also fail an otherwise successful job before publication.
 
 Alpha limitations: no model download or model management, no diarization/speaker
-labels, no forced alignment, no retry/resume, no GPU/device controls, and no speech
+labels, no forced alignment, no automatic retry/resume, no GPU/device controls, and no speech
 accuracy or guaranteed overlap-deduplication claim. Automated backend tests use a
 fake CLI to verify command/persistence/API behavior; they are explicitly not
 speech-accuracy tests. A real CLI/model speech smoke test remains an installation
