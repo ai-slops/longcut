@@ -1,7 +1,10 @@
 mod plan;
+mod probe;
+#[cfg(test)]
+mod tests;
+mod workspace;
 
 use longcut_session_contract::model::Source as PackageSource;
-use serde::Deserialize;
 use std::{path::Path, process::Stdio, time::Duration};
 use tokio::{io::AsyncReadExt, process::Command};
 use tokio_util::sync::CancellationToken;
@@ -11,71 +14,126 @@ use crate::{
     media,
     model::{EditorSourceMapping, Source},
 };
+use probe::{verify_origin, verify_source_start};
+use workspace::AttemptWorkspace;
+
+struct Adaptation<'a> {
+    context: &'a super::prepare::Context<'a>,
+    source: &'a PackageSource,
+    plan: plan::Plan,
+}
 
 pub(super) async fn build(
     context: &super::prepare::Context<'_>,
     source: &PackageSource,
 ) -> AppResult<(Source, EditorSourceMapping)> {
     let plan = plan::build(context.package, source, context.frame_rate)?;
-    let name = format!("{}-session-source.mp4", uuid::Uuid::new_v4());
-    let path = context.work.join(&name);
-    let mut command = Command::new("ffmpeg");
-    command.args(["-v", "error", "-nostdin", "-copyts"]);
-    for binding in &plan.bindings {
-        let asset = context
-            .package
-            .registry
-            .assets
-            .iter()
-            .find(|asset| asset.asset_id == binding.asset_id)
-            .ok_or(AppError::NotFound)?;
-        command
-            .args([
-                "-protocol_whitelist",
-                "file",
-                "-format_whitelist",
-                "mov,matroska,webm,avi,wav,flac,mp3,ogg,aac,mpegts",
-                "-i",
-            ])
-            .arg(context.root.join(&asset.uri));
-    }
-    for (index, binding) in plan.bindings.iter().enumerate() {
-        command.args(["-map", &format!("{index}:{}", binding.stream_index)]);
-    }
-    command
-        .args([
-            "-t",
-            &plan.duration,
-            "-c",
-            "copy",
-            "-avoid_negative_ts",
-            "disabled",
-            "-map_metadata",
-            "-1",
-            "-movflags",
-            "+faststart",
-            "-y",
-        ])
-        .arg(&path);
-    run(command, context.token).await?;
-    verify_origin(&path, plan.bindings.len()).await?;
-    let mut editor = media::probe_source(
-        &path,
-        &source.display_name,
-        plan.role,
-        context.frame_rate,
-        &name,
+    let video = plan
+        .bindings
+        .first()
+        .ok_or_else(|| AppError::Invalid("adapter plan has no video binding".into()))?;
+    let asset = context
+        .package
+        .registry
+        .assets
+        .iter()
+        .find(|asset| asset.asset_id == video.asset_id)
+        .ok_or(AppError::NotFound)?;
+    let video_mapping = plan
+        .mappings
+        .first()
+        .ok_or_else(|| AppError::Invalid("adapter plan has no video mapping".into()))?;
+    verify_source_start(
+        &context.root.join(&asset.uri),
+        video.stream_index,
+        &video_mapping.media_start,
     )
     .await?;
-    editor.duration_frames = plan.frames;
-    editor = media::derivatives_with_cancel(context.work, &editor, context.token).await?;
-    let mapping = EditorSourceMapping {
-        editor_source_id: editor.id.clone(),
-        package_source_id: source.source_id.0.clone(),
-        bindings: plan.mappings,
-        session_range: plan.session_range,
-    };
-    Ok((editor, mapping))
+    let attempt = AttemptWorkspace::create(context.work).await?;
+    let result = Adaptation {
+        context,
+        source,
+        plan,
+    }
+    .build_in(attempt.path())
+    .await;
+    match result {
+        Ok(value) => {
+            attempt.publish(context.work, &value.0).await?;
+            Ok(value)
+        }
+        Err(error) => {
+            attempt.cleanup().await?;
+            Err(error)
+        }
+    }
+}
+
+impl Adaptation<'_> {
+    async fn build_in(self, work: &Path) -> AppResult<(Source, EditorSourceMapping)> {
+        let name = format!("{}-session-source.mp4", uuid::Uuid::new_v4());
+        let path = work.join(&name);
+        let mut command = Command::new("ffmpeg");
+        command.args(["-v", "error", "-nostdin", "-copyts"]);
+        for binding in &self.plan.bindings {
+            let asset = self
+                .context
+                .package
+                .registry
+                .assets
+                .iter()
+                .find(|asset| asset.asset_id == binding.asset_id)
+                .ok_or(AppError::NotFound)?;
+            command
+                .args([
+                    "-itsoffset",
+                    &self.plan.input_offset,
+                    "-protocol_whitelist",
+                    "file",
+                    "-format_whitelist",
+                    "mov,matroska,webm,avi,wav,flac,mp3,ogg,aac,mpegts",
+                    "-i",
+                ])
+                .arg(self.context.root.join(&asset.uri));
+        }
+        for (index, binding) in self.plan.bindings.iter().enumerate() {
+            command.args(["-map", &format!("{index}:{}", binding.stream_index)]);
+        }
+        command
+            .args([
+                "-t",
+                &self.plan.duration,
+                "-c",
+                "copy",
+                "-avoid_negative_ts",
+                "disabled",
+                "-map_metadata",
+                "-1",
+                "-movflags",
+                "+faststart",
+                "-y",
+            ])
+            .arg(&path);
+        run(command, self.context.token).await?;
+        verify_origin(&path, self.plan.bindings.len()).await?;
+        let mut editor = media::probe_source(
+            &path,
+            &self.source.display_name,
+            self.plan.role,
+            self.context.frame_rate,
+            &name,
+        )
+        .await?;
+        editor.duration_frames = self.plan.frames;
+        editor = media::derivatives_with_cancel(work, &editor, self.context.token).await?;
+        let mapping = EditorSourceMapping {
+            editor_source_id: editor.id.clone(),
+            package_source_id: self.source.source_id.0.clone(),
+            bindings: self.plan.mappings,
+            session_range: self.plan.session_range,
+        };
+        Ok((editor, mapping))
+    }
 }
 
 async fn run(mut command: Command, token: &CancellationToken) -> AppResult<()> {
@@ -116,55 +174,4 @@ async fn run(mut command: Command, token: &CancellationToken) -> AppResult<()> {
         child.kill().await?;
     }
     result
-}
-
-#[derive(Deserialize)]
-struct Probe {
-    streams: Vec<Stream>,
-    format: Format,
-}
-#[derive(Deserialize)]
-struct Stream {
-    codec_type: String,
-    start_pts: Option<i64>,
-}
-#[derive(Deserialize)]
-struct Format {
-    start_time: Option<String>,
-}
-
-async fn verify_origin(path: &Path, count: usize) -> AppResult<()> {
-    let result = tokio::time::timeout(
-        Duration::from_secs(30),
-        Command::new("ffprobe")
-            .kill_on_drop(true)
-            .args([
-                "-v",
-                "error",
-                "-show_entries",
-                "stream=codec_type,start_pts:format=start_time",
-                "-of",
-                "json",
-            ])
-            .arg(path)
-            .output(),
-    )
-    .await
-    .map_err(|_| AppError::Invalid("adapter probe timed out".into()))??;
-    if !result.status.success() {
-        return Err(AppError::Invalid("adapter cannot be probed".into()));
-    }
-    let probe: Probe = serde_json::from_slice(&result.stdout)?;
-    if probe.streams.len() != count
-        || probe
-            .streams
-            .first()
-            .is_none_or(|stream| stream.codec_type != "video" || stream.start_pts != Some(0))
-        || probe.format.start_time.as_deref() != Some("0.000000")
-    {
-        return Err(AppError::Invalid(
-            "adapter is not a verified zero-origin single-video source".into(),
-        ));
-    }
-    Ok(())
 }
