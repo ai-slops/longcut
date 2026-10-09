@@ -1,5 +1,8 @@
 mod parse;
 mod store;
+mod word_text;
+
+pub(crate) use word_text::{canonical_word_separator, checked_canonical_word_len};
 
 use crate::{AppState, error::AppResult};
 use axum::{

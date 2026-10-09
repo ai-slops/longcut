@@ -1,6 +1,6 @@
 use crate::{
     error::{AppError, AppResult},
-    transcript::{Cue, Word},
+    transcript::{Cue, Word, canonical_word_separator, checked_canonical_word_len},
 };
 
 use super::whisper::WhisperOutput;
@@ -8,62 +8,19 @@ use super::whisper::WhisperOutput;
 #[path = "conversion_index.rs"]
 mod index;
 use index::PreviousChunkIndex;
+#[path = "conversion_window.rs"]
+mod window;
+use window::{CueWindow, millis_to_end_frame, millis_to_start_frame, owned_by};
 
-pub(super) const OVERLAP_SECONDS: u64 = 2;
+pub(super) type ChunkLayout = window::ChunkLayout;
+pub(super) const OVERLAP_SECONDS: u64 = window::OVERLAP_SECONDS;
+
 pub(super) const MAX_CUES: usize = 20_000;
 pub(super) const MAX_WORDS: usize = 100_000;
 pub(super) const MAX_PROCESSED_WORD_CANDIDATES: usize = 300_000;
 pub(super) const MAX_WORDS_PER_CUE: usize = 12;
 pub(super) const MAX_CUE_TEXT_BYTES: usize = 16 * 1024;
 pub(super) const MAX_JOB_TEXT_BYTES: usize = 32 * 1024 * 1024;
-
-#[derive(Clone, Copy)]
-pub(super) struct ChunkLayout {
-    pub chunk_frames: u64,
-    pub duration_frames: u64,
-    pub frame_rate: u32,
-}
-
-impl ChunkLayout {
-    pub(super) fn window(self, index: u32) -> AppResult<CueWindow> {
-        let owner_start = u64::from(index)
-            .checked_mul(self.chunk_frames)
-            .ok_or_else(|| AppError::Invalid("ASR chunk position overflow".into()))?;
-        let owner_end = owner_start
-            .saturating_add(self.chunk_frames)
-            .min(self.duration_frames);
-        let overlap = OVERLAP_SECONDS
-            .checked_mul(u64::from(self.frame_rate))
-            .ok_or_else(|| AppError::Invalid("ASR overlap size overflow".into()))?;
-        Ok(CueWindow {
-            inference_start: owner_start.saturating_sub(overlap),
-            inference_end: owner_end.saturating_add(overlap).min(self.duration_frames),
-            owner_start,
-            owner_end,
-            frame_rate: self.frame_rate,
-        })
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(super) struct CueWindow {
-    inference_start: u64,
-    inference_end: u64,
-    owner_start: u64,
-    owner_end: u64,
-    frame_rate: u32,
-}
-
-impl CueWindow {
-    pub(super) const fn bounds(self) -> (u64, u64, u64, u64) {
-        (
-            self.inference_start,
-            self.inference_end,
-            self.owner_start,
-            self.owner_end,
-        )
-    }
-}
 
 struct TimedWord {
     wire: Word,
@@ -185,12 +142,11 @@ impl CueAccumulator {
             let mut end = start;
             let mut text_bytes = 0_usize;
             while end < self.words.len() && end - start < MAX_WORDS_PER_CUE {
-                let separator_bytes =
-                    usize::from(end > start && needs_space(&self.words[end].wire.text));
-                let next_bytes = text_bytes
-                    .checked_add(separator_bytes)
-                    .and_then(|value| value.checked_add(self.words[end].wire.text.len()))
-                    .ok_or_else(|| AppError::Invalid("ASR cue text byte count overflow".into()))?;
+                let next_bytes =
+                    checked_canonical_word_len(text_bytes, end > start, &self.words[end].wire.text)
+                        .ok_or_else(|| {
+                            AppError::Invalid("ASR cue text byte count overflow".into())
+                        })?;
                 if end > start && next_bytes > MAX_CUE_TEXT_BYTES {
                     break;
                 }
@@ -228,21 +184,6 @@ pub(super) fn merge_language(current: Option<String>, next: Option<String>) -> O
     }
 }
 
-fn owned_by(start: u64, end: u64, window: CueWindow) -> AppResult<bool> {
-    let midpoint_twice = start
-        .checked_add(end)
-        .ok_or_else(|| AppError::Invalid("whisper word midpoint overflow".into()))?;
-    let owner_start_twice = window
-        .owner_start
-        .checked_mul(2)
-        .ok_or_else(|| AppError::Invalid("ASR ownership range overflow".into()))?;
-    let owner_end_twice = window
-        .owner_end
-        .checked_mul(2)
-        .ok_or_else(|| AppError::Invalid("ASR ownership range overflow".into()))?;
-    Ok(owner_start_twice <= midpoint_twice && midpoint_twice < owner_end_twice)
-}
-
 fn aggregate(words: &[TimedWord]) -> Option<Cue> {
     let start = words.iter().map(|word| word.start).min()?;
     let end = words.iter().map(|word| word.end).max()?;
@@ -251,8 +192,8 @@ fn aggregate(words: &[TimedWord]) -> Option<Cue> {
     }
     let mut text = String::new();
     for word in words {
-        if !text.is_empty() && needs_space(&word.wire.text) {
-            text.push(' ');
+        if !text.is_empty() {
+            text.push_str(canonical_word_separator(&word.wire.text));
         }
         text.push_str(&word.wire.text);
     }
@@ -265,35 +206,11 @@ fn aggregate(words: &[TimedWord]) -> Option<Cue> {
     })
 }
 
-fn needs_space(text: &str) -> bool {
-    !text.chars().next().is_some_and(|character| {
-        matches!(
-            character,
-            '.' | ',' | '!' | '?' | ':' | ';' | ')' | ']' | '}'
-        )
-    })
-}
-
 fn normalize(text: &str) -> String {
     text.split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
         .to_lowercase()
-}
-
-fn millis_to_start_frame(milliseconds: u64, frame_rate: u32) -> AppResult<u64> {
-    milliseconds
-        .checked_mul(u64::from(frame_rate))
-        .map(|value| value / 1000)
-        .ok_or_else(|| AppError::Invalid("whisper offset overflow".into()))
-}
-
-fn millis_to_end_frame(milliseconds: u64, frame_rate: u32) -> AppResult<u64> {
-    milliseconds
-        .checked_mul(u64::from(frame_rate))
-        .and_then(|value| value.checked_add(999))
-        .map(|value| value / 1000)
-        .ok_or_else(|| AppError::Invalid("whisper offset overflow".into()))
 }
 
 #[cfg(test)]
