@@ -4,12 +4,12 @@ import { ApiError, api } from "../api"
 import type { Source } from "../domain"
 import {
   type CueSelection,
-  cueSelection,
   type TranscriptPage,
   transcriptRequestMatches,
 } from "../transcript-domain"
+import { TranscriptCueRow } from "./TranscriptCueRow"
 import { TranscriptMetadata } from "./TranscriptMetadata"
-import { Badge, Button, formatFrames } from "./Ui"
+import { Badge, Button } from "./Ui"
 
 type TranscriptPanelProps = {
   readonly projectId: string
@@ -198,12 +198,12 @@ export function TranscriptPanel({ projectId, source, onSelectCue }: TranscriptPa
           </div>
           <ol className="transcript-cues">
             {page.cues.map((cue) => (
-              <li key={cue.id}>
-                <button type="button" onClick={() => onSelectCue(cueSelection(cue))}>
-                  <code>{formatFrames(cue.start_frame, page.frame_rate)}</code>
-                  <span>{cue.text}</span>
-                </button>
-              </li>
+              <TranscriptCueRow
+                key={cue.id}
+                cue={cue}
+                frameRate={page.frame_rate}
+                onSelect={onSelectCue}
+              />
             ))}
           </ol>
           {page.next_cursor ? (

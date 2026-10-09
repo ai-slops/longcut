@@ -21,6 +21,7 @@ export function TranscriptMetadata({ page }: TranscriptMetadataProps) {
             Language: requested {provenance.requestedLanguage}
             {provenance.resultLanguage ? ` · detected ${provenance.resultLanguage}` : ""}
           </span>
+          <span>Timing: model estimated; word detail is available only where recorded</span>
           <span>Machine-generated · not human verified</span>
         </div>
       )

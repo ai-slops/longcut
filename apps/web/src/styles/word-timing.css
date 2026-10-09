@@ -1,0 +1,83 @@
+.transcript-cue__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s1);
+}
+
+.transcript-cues .transcript-cue__expand {
+  inline-size: auto;
+  min-block-size: 36px;
+  display: inline-flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: var(--s1);
+  padding: var(--s2);
+  color: var(--paper-3);
+  font-size: var(--type-micro);
+}
+
+.word-timing {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s2);
+  border-inline-start: 1px solid var(--violet-1);
+  background: var(--ink-2);
+}
+
+.word-timing > small {
+  color: var(--warning);
+  font-size: var(--type-small);
+}
+
+.word-timing__units {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1);
+}
+
+.transcript-cues .word-timing__word {
+  inline-size: auto;
+  min-block-size: 32px;
+  display: inline-flex;
+  grid-template-columns: none;
+  padding: var(--s1) var(--s2);
+  border-color: var(--line-1);
+  background: var(--ink-3);
+  color: var(--paper-1);
+  font-size: var(--type-small);
+}
+
+.transcript-cues .word-timing__word:hover {
+  border-color: var(--violet-2);
+  background: var(--ink-4);
+}
+
+.word-timing__punctuation {
+  color: var(--paper-3);
+  font-size: var(--type-small);
+}
+
+.transcript-cues:has(.word-timing),
+.monitor-grid--source .transcript-cues:has(.word-timing) {
+  max-block-size: min(50vh, calc(var(--s12) * 6));
+}
+
+@media (max-width: 760px) {
+  .transcript-cue__header {
+    grid-template-columns: 1fr;
+  }
+
+  .transcript-cues .transcript-cue__expand,
+  .transcript-cues .word-timing__word {
+    min-block-size: 44px;
+  }
+}
+
+@media (pointer: coarse) {
+  .transcript-cues .transcript-cue__expand,
+  .transcript-cues .word-timing__word {
+    min-block-size: 44px;
+  }
+}
