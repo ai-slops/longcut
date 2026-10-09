@@ -139,7 +139,11 @@ pub async fn derivatives_with_cancel(
 }
 
 pub async fn tool_available(name: &str) -> bool {
-    Command::new(name)
+    tool_available_path(Path::new(name)).await
+}
+
+pub async fn tool_available_path(path: &Path) -> bool {
+    Command::new(path)
         .kill_on_drop(true)
         .arg("-version")
         .stdout(Stdio::null())
