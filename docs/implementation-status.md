@@ -6,6 +6,18 @@ contract revision**, recorded in the explicitly condensed
 
 ## Overall finding
 
+### Overlap-aware word timing and declared-sync diagnostics checkpoint
+
+Local ASR now supports bounded two-second context overlap, indexed neighboring-chunk
+reconciliation and persisted model-estimated word units. Source word selection is
+available without moving Output. Read-only source-session diagnostics expose exact
+declared offsets, drift, coverage gaps and overlaps with bounded output and honest
+unknown/unverifiable states. Neither feature establishes measured AV alignment or
+general playback retiming. Real two-chunk Korean speech and real package diagnostics
+were exercised; a four-sample tiny/base comparison remains directional only.
+See [timed-ASR and sync evidence](timed-asr-sync-validation.md). This supersedes older
+statements below that all word timing, overlap processing or sync diagnostics are absent.
+
 ### Local ASR and nonzero-origin integration checkpoint
 
 Local whisper.cpp jobs now support Korean/English/automatic language selection,
