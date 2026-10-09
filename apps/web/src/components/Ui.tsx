@@ -5,6 +5,7 @@ import type {
   ReactNode,
   TextareaHTMLAttributes,
 } from "react"
+import { useId } from "react"
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   readonly variant?: "primary" | "secondary" | "ghost" | "danger"
@@ -37,12 +38,15 @@ type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
 }
 
 export function Field({ label, hint, id, ...props }: FieldProps) {
-  const fieldId = id ?? `field-${label.toLowerCase().replaceAll(" ", "-")}`
+  const generatedId = useId()
+  const fieldId = id ?? `field-${generatedId}`
+  const hintId = `${fieldId}-hint`
+  const describedBy = props["aria-describedby"] ?? (hint ? hintId : undefined)
   return (
     <label className="field" htmlFor={fieldId}>
       <span>{label}</span>
-      <input id={fieldId} {...props} />
-      {hint ? <small>{hint}</small> : null}
+      <input id={fieldId} {...props} aria-describedby={describedBy} />
+      {hint ? <small id={hintId}>{hint}</small> : null}
     </label>
   )
 }
@@ -50,7 +54,8 @@ export function Field({ label, hint, id, ...props }: FieldProps) {
 type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & { readonly label: string }
 
 export function TextArea({ label, id, ...props }: TextAreaProps) {
-  const fieldId = id ?? `field-${label.toLowerCase().replaceAll(" ", "-")}`
+  const generatedId = useId()
+  const fieldId = id ?? `field-${generatedId}`
   return (
     <label className="field" htmlFor={fieldId}>
       <span>{label}</span>
