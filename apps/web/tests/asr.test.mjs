@@ -7,6 +7,7 @@ import {
   asrJobStorageKey,
   asrRequestMatches,
   canPollAsrJob,
+  canResumeAsrJob,
   canRetryAsrPoll,
   isActiveAsrJob,
 } from "../src/asr-domain.ts"
@@ -58,6 +59,25 @@ test("rejects ASR progress that exceeds its total chunks", () => {
   })
   // Then schema drift is rejected before the UI renders it.
   assert.equal(parsed.success, false)
+})
+
+test("treats legacy ASR jobs without resume metadata as ineligible", () => {
+  // Given an older persisted job fixture without resume_eligible.
+  // When it crosses the browser boundary.
+  const parsed = AsrJobSchema.parse({ ...job, status: "failed" })
+  // Then the UI cannot present a misleading resume action.
+  assert.equal(parsed.resume_eligible, false)
+})
+
+test("allows explicit resume only for eligible failed or cancelled jobs", () => {
+  // Given jobs that advertise retained resume state across terminal and active statuses.
+  const failed = AsrJobSchema.parse({ ...job, status: "failed", resume_eligible: true })
+  const cancelled = AsrJobSchema.parse({ ...job, status: "cancelled", resume_eligible: true })
+  const running = AsrJobSchema.parse({ ...job, resume_eligible: true })
+  // When resume eligibility is evaluated.
+  const outcomes = [canResumeAsrJob(failed), canResumeAsrJob(cancelled), canResumeAsrJob(running)]
+  // Then only eligible resumable terminal states expose the action.
+  assert.deepEqual(outcomes, [true, true, false])
 })
 
 test("scopes recovered ASR jobs to the selected project and source", () => {

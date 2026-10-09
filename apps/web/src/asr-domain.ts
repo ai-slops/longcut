@@ -40,6 +40,7 @@ export const AsrJobSchema = z.object({
   updated_at: z.string(),
   transcript_id: z.string().nullable(),
   error: z.string().nullable(),
+  resume_eligible: z.boolean().default(false),
 })
 
 export type AsrLanguage = z.infer<typeof AsrLanguageSchema>
@@ -56,6 +57,10 @@ export function asrJobBelongsToSource(job: AsrJob, projectId: string, sourceId: 
 
 export function isActiveAsrJob(job: AsrJob): boolean {
   return job.status === "queued" || job.status === "running"
+}
+
+export function canResumeAsrJob(job: AsrJob): boolean {
+  return job.resume_eligible && (job.status === "failed" || job.status === "cancelled")
 }
 
 export function asrRequestMatches(
