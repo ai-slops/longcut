@@ -6,6 +6,16 @@ contract revision**, recorded in the explicitly condensed
 
 ## Overall finding
 
+### Explicit ASR checkpoint-resume checkpoint
+
+ASR now persists validated chunk checkpoints, revalidates input/runtime fingerprints
+and transcript ownership, and supports explicit resume after cancellation or restart.
+Real Whisper processing was interrupted with SIGKILL at 1/2 chunks and resumed to
+2/2 without rerunning the first chunk. The final browser flow and schema-v6 migration
+were also verified. See [ASR resume evidence](asr-resume-validation.md). This resolves
+the ASR-specific resumability gap, not all queued media/render/analysis recovery or
+the remaining release gates.
+
 ### Overlap-aware word timing and declared-sync diagnostics checkpoint
 
 Local ASR now supports bounded two-second context overlap, indexed neighboring-chunk
