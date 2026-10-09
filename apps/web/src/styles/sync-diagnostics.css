@@ -29,11 +29,6 @@
   gap: var(--s2);
 }
 
-.sync-diagnostics__body > header > div {
-  display: grid;
-  gap: var(--s1);
-}
-
 .sync-diagnostics__disclaimer,
 .sync-diagnostics__unknown,
 .sync-diagnostics__unsupported,
@@ -70,6 +65,11 @@
   border: 1px solid var(--line-1);
   border-radius: var(--r1);
   background: var(--ink-1);
+}
+
+.sync-diagnostics__body > header > div {
+  display: grid;
+  gap: var(--s1);
 }
 
 .sync-diagnostics__facts dt,
