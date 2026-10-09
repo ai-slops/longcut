@@ -7,7 +7,9 @@ type RangeControlsProps = {
   readonly onIn: (value: number) => void
   readonly onOut: (value: number) => void
   readonly onAdd: () => void
+  readonly onSaveMoment: () => void
   readonly disabled: boolean
+  readonly sceneDisabled: boolean
 }
 
 export function RangeControls({
@@ -17,7 +19,9 @@ export function RangeControls({
   onIn,
   onOut,
   onAdd,
+  onSaveMoment,
   disabled,
+  sceneDisabled,
 }: RangeControlsProps) {
   return (
     <div className="range-controls">
@@ -34,9 +38,17 @@ export function RangeControls({
         type="button"
         variant="primary"
         onClick={onAdd}
-        disabled={disabled || outFrame <= inFrame}
+        disabled={disabled || sceneDisabled || outFrame <= inFrame}
       >
         Add scene
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={onSaveMoment}
+        disabled={disabled || outFrame <= inFrame}
+      >
+        Save moment
       </Button>
     </div>
   )

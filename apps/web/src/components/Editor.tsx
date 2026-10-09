@@ -1,22 +1,14 @@
 import { ArrowLeft, ChevronDown, Redo2, Undo2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { Command, Project, Source } from "../domain"
-import { programDuration, sceneDuration, sceneProgramStart } from "../timeline"
+import { programDuration } from "../timeline"
 import { useEditorShortcuts } from "../useEditorShortcuts"
 import { AgentPanel } from "./AgentPanel"
-import { AsrControls } from "./AsrControls"
 import { DeliverablesPanel } from "./DeliverablesPanel"
 import { type EditorTab, EditorTabs } from "./EditorTabs"
-import { Inspector } from "./Inspector"
-import { MediaFrame } from "./MediaFrame"
-import { ProgramMonitor } from "./ProgramMonitor"
-import { RangeControls } from "./RangeControls"
 import { ReviewPanel } from "./ReviewPanel"
-import { SessionImports } from "./SessionImports"
-import { SourceRail } from "./SourceRail"
+import { SourceWorkspace } from "./SourceWorkspace"
 import { StoryPanel } from "./StoryPanel"
-import { Timeline } from "./Timeline"
-import { TranscriptPanel } from "./TranscriptPanel"
 import { ErrorBar } from "./Ui"
 
 type EditorProps = {
@@ -55,7 +47,6 @@ export function Editor({
   const programFrame = Math.max(0, Math.min(programPosition, Math.max(0, duration - 1)))
   const [inFrame, setInFrame] = useState(0)
   const [outFrame, setOutFrame] = useState(project.frame_rate * 5)
-  const [transcriptRefreshKey, setTranscriptRefreshKey] = useState(0)
   const source = project.sources.find((item) => item.id === sourceId) ?? null
   const scene = project.scenes.find((item) => item.id === sceneId) ?? null
 
@@ -80,17 +71,6 @@ export function Editor({
     setInFrame,
     setOutFrame,
   })
-
-  async function addScene(): Promise<void> {
-    if (!source || outFrame <= inFrame) return
-    await onCommand({
-      type: "insert_scene",
-      source_id: source.id,
-      in_frame: String(inFrame),
-      out_frame: String(outFrame),
-      title: `Scene ${project.scenes.length + 1}`,
-    })
-  }
 
   return (
     <main className="editor-shell">
@@ -133,7 +113,20 @@ export function Editor({
         </div>
       </header>
       {error ? <ErrorBar message={error} onDismiss={onClearError} /> : null}
-      {tab === "Story" ? <StoryPanel project={project} busy={busy} onCommand={onCommand} /> : null}
+      {tab === "Story" ? (
+        <StoryPanel
+          project={project}
+          busy={busy}
+          onCommand={onCommand}
+          onReveal={(moment) => {
+            setSourceId(moment.source_id)
+            setSourceFrame(Number(moment.start_frame))
+            setInFrame(Number(moment.start_frame))
+            setOutFrame(Number(moment.end_frame))
+            setTab("Sources")
+          }}
+        />
+      ) : null}
       {tab === "Agent" ? (
         <AgentPanel
           project={project}
@@ -157,100 +150,34 @@ export function Editor({
         <DeliverablesPanel project={project} busy={busy} onRender={onRender} />
       ) : null}
       {tab === "Sources" || tab === "Edit" ? (
-        <div className="edit-workspace">
-          <SourceRail
-            project={project}
-            selectedId={sourceId}
-            busy={busy}
-            onSelect={(item) => {
-              setSourceId(item.id)
-              setSourceFrame(0)
-              setInFrame(0)
-              setOutFrame(Math.min(Number(item.duration_frames), project.frame_rate * 5))
-            }}
-            onImport={onImport}
-            onDemo={onDemo}
-          />
-          <div className={`edit-center ${tab === "Sources" ? "edit-center--sources" : ""}`}>
-            {tab === "Sources" ? (
-              <SessionImports key={project.id} project={project} onProject={onSessionProject} />
-            ) : null}
-            <div className={`monitor-grid ${tab === "Sources" ? "monitor-grid--source" : ""}`}>
-              <div>
-                <MediaFrame
-                  label="SOURCE"
-                  source={source}
-                  frame={sourceFrame}
-                  fps={project.frame_rate}
-                  maxFrame={Math.max(0, Number(source?.duration_frames ?? 1) - 1)}
-                  onFrame={setSourceFrame}
-                />
-                <RangeControls
-                  inFrame={inFrame}
-                  outFrame={outFrame}
-                  current={sourceFrame}
-                  onIn={setInFrame}
-                  onOut={setOutFrame}
-                  onAdd={() => void addScene()}
-                  disabled={!source || busy}
-                />
-                <AsrControls
-                  projectId={project.id}
-                  source={source}
-                  onTranscriptReady={() => setTranscriptRefreshKey((value) => value + 1)}
-                />
-                <TranscriptPanel
-                  key={`${source?.id ?? "none"}:${transcriptRefreshKey}`}
-                  projectId={project.id}
-                  source={source}
-                  onSelectCue={(selection) => {
-                    setSourceFrame(selection.sourceFrame)
-                    setInFrame(selection.inFrame)
-                    setOutFrame(selection.outFrame)
-                  }}
-                />
-              </div>
-              {tab === "Edit" ? (
-                <ProgramMonitor project={project} frame={programFrame} onFrame={setProgramFrame} />
-              ) : null}
-            </div>
-            {tab === "Edit" ? (
-              <Timeline
-                project={project}
-                selectedId={sceneId}
-                playhead={programFrame}
-                onPlayhead={setProgramFrame}
-                onSelect={(item) => {
-                  setSceneId(item.id)
-                  setProgramFrame(sceneProgramStart(project, item.id))
-                }}
-                onDelete={(item) => void onCommand({ type: "delete_scene", scene_id: item.id })}
-                onSplit={(item) => {
-                  const offset = programFrame - sceneProgramStart(project, item.id)
-                  if (offset > 0 && offset < sceneDuration(item))
-                    void onCommand({
-                      type: "split_scene",
-                      scene_id: item.id,
-                      offset_frame: String(offset),
-                    })
-                }}
-                onLock={(item) =>
-                  void onCommand({ type: "lock_scene", scene_id: item.id, locked: !item.locked })
-                }
-              />
-            ) : null}
-          </div>
-          {tab === "Edit" ? (
-            <Inspector
-              project={project}
-              scene={scene}
-              programFrame={programFrame}
-              busy={busy}
-              onCommand={onCommand}
-              onSeek={setProgramFrame}
-            />
-          ) : null}
-        </div>
+        <SourceWorkspace
+          tab={tab}
+          project={project}
+          busy={busy}
+          source={source}
+          scene={scene}
+          sourceFrame={sourceFrame}
+          programFrame={programFrame}
+          inFrame={inFrame}
+          outFrame={outFrame}
+          selectedSourceId={sourceId}
+          selectedSceneId={sceneId}
+          onSourceState={(item) => {
+            setSourceId(item.id)
+            setSourceFrame(0)
+            setInFrame(0)
+            setOutFrame(Math.min(Number(item.duration_frames), project.frame_rate * 5))
+          }}
+          onSourceFrame={setSourceFrame}
+          onProgramFrame={setProgramFrame}
+          onInFrame={setInFrame}
+          onOutFrame={setOutFrame}
+          onSceneId={setSceneId}
+          onCommand={onCommand}
+          onImport={onImport}
+          onSessionProject={onSessionProject}
+          onDemo={onDemo}
+        />
       ) : null}
     </main>
   )
