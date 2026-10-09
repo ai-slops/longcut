@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   cueSelection,
   TranscriptPageSchema,
+  transcriptProvenance,
   transcriptRequestMatches,
 } from "../src/transcript-domain.ts"
 
@@ -33,6 +34,53 @@ test("rejects transcript responses with an invented origin", () => {
   const parsed = TranscriptPageSchema.safeParse({ ...page, origin: "automatic_asr" })
   // Then schema drift is exposed rather than rendered as imported text.
   assert.equal(parsed.success, false)
+})
+
+test("parses local ASR metadata without changing subtitle import metadata", () => {
+  // Given a published transcript from the local Whisper runtime.
+  const localAsrPage = {
+    ...page,
+    origin: "local_asr",
+    asr: {
+      engine: "whisper.cpp",
+      model: "/models/ggml-small.bin",
+      requested_language: "auto",
+      result_language: "ko",
+    },
+  }
+  // When both transcript origins cross the browser boundary.
+  const parsedAsr = TranscriptPageSchema.parse(localAsrPage)
+  const parsedImport = TranscriptPageSchema.parse(page)
+  // Then ASR remains explicitly identified and manual imports remain unchanged.
+  assert.equal(parsedAsr.origin, "local_asr")
+  assert.equal(parsedAsr.asr.requested_language, "auto")
+  assert.equal(parsedImport.origin, "subtitle_import")
+  assert.equal("asr" in parsedImport, false)
+})
+
+test("describes local ASR provenance as machine-generated and unverified", () => {
+  // Given a parsed local ASR transcript with automatic language detection.
+  const parsed = TranscriptPageSchema.parse({
+    ...page,
+    origin: "local_asr",
+    asr: {
+      engine: "whisper.cpp",
+      model: "/models/ggml-small.bin",
+      requested_language: "auto",
+      result_language: "ko",
+    },
+  })
+  // When display provenance is derived from the closed transcript variant.
+  const provenance = transcriptProvenance(parsed)
+  // Then the UI receives exact engine/model/language data and no verified-human state.
+  assert.deepEqual(provenance, {
+    kind: "local_asr",
+    engine: "whisper.cpp",
+    model: "/models/ggml-small.bin",
+    requestedLanguage: "auto",
+    resultLanguage: "ko",
+    verification: "unverified",
+  })
 })
 
 test("maps a cue to the independent Source seek and range", () => {

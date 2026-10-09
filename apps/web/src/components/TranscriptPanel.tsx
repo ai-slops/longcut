@@ -8,6 +8,7 @@ import {
   type TranscriptPage,
   transcriptRequestMatches,
 } from "../transcript-domain"
+import { TranscriptMetadata } from "./TranscriptMetadata"
 import { Badge, Button, formatFrames } from "./Ui"
 
 type TranscriptPanelProps = {
@@ -181,12 +182,18 @@ export function TranscriptPanel({ projectId, source, onSelectCue }: TranscriptPa
       ) : !page ? (
         <div className="transcript-panel__empty">
           <FileText size={18} />
-          <span>{busy ? "Loading transcript…" : error ? "Transcript could not be loaded." : "No transcript imported for this Source."}</span>
+          <span>
+            {busy
+              ? "Loading transcript…"
+              : error
+                ? "Transcript could not be loaded."
+                : "No transcript available for this Source."}
+          </span>
         </div>
       ) : (
         <>
           <div className="transcript-panel__meta">
-            <span>{page.filename}</span>
+            <TranscriptMetadata page={page} />
             {query ? <span>Results for “{query}”</span> : null}
           </div>
           <ol className="transcript-cues">
