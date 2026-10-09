@@ -1,0 +1,297 @@
+.moment-evidence-notice {
+  padding: var(--s2) var(--s3);
+  border-block-start: 1px solid var(--line-1);
+  color: var(--warning);
+  font-size: var(--type-small);
+}
+
+.moment-composer {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border-block-start: 1px solid var(--violet-1);
+  background: var(--ink-2);
+}
+
+.moment-composer > header,
+.moment-composer > footer,
+.moment-composer__fields {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.moment-composer > header > div {
+  display: grid;
+  gap: var(--s1);
+}
+
+.moment-composer > header > button {
+  inline-size: 36px;
+  block-size: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r1);
+  background: transparent;
+  cursor: pointer;
+}
+
+.moment-composer > header > button:hover {
+  background: var(--ink-4);
+}
+
+.moment-composer__fields > * {
+  flex: 1 1 0;
+}
+
+.moment-composer__evidence {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s2);
+  border-inline-start: 2px solid var(--violet-1);
+  background: var(--ink-1);
+}
+
+.moment-composer__evidence .badge {
+  justify-self: start;
+}
+
+.moment-composer__evidence q {
+  color: var(--paper-1);
+  font-size: var(--type-small);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.moment-composer__evidence small,
+.moment-composer__manual,
+.moment-composer > footer small {
+  color: var(--paper-3);
+  font-size: var(--type-small);
+}
+
+.moments-panel {
+  grid-column: 1 / -1;
+}
+
+.moments-panel__tools {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.3fr) minmax(240px, 1fr);
+  gap: var(--s3);
+  margin-block-end: var(--s3);
+}
+
+.moment-list {
+  display: grid;
+  gap: var(--s3);
+}
+
+.moment-card {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--line-1);
+  border-inline-start: 2px solid var(--violet-1);
+  border-radius: var(--r1);
+  background: var(--ink-1);
+}
+
+.moment-card--archived {
+  border-inline-start-color: var(--line-2);
+  background: var(--ink-2);
+}
+
+.moment-card > header,
+.moment-edit > footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.moment-card > header > div {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--s2);
+}
+
+.moment-card > header p,
+.moment-card__note,
+.moment-card__gate {
+  font-size: var(--type-small);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.moment-card__quality {
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s2);
+  border-inline-start: 2px solid var(--warning);
+  color: var(--paper-3);
+  font-size: var(--type-small);
+}
+
+.moment-card__quality strong {
+  color: var(--warning);
+}
+
+.moment-card figure,
+.moment-version__snapshot figure {
+  margin: 0;
+  padding: var(--s3);
+  background: var(--ink-2);
+}
+
+.moment-card blockquote,
+.moment-version__snapshot blockquote {
+  margin: 0;
+  color: var(--paper-1);
+  font-size: var(--type-body);
+  line-height: 1.45;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.moment-card figcaption,
+.moment-version__snapshot figcaption {
+  margin-block-start: var(--s2);
+  color: var(--paper-3);
+  font-size: var(--type-small);
+}
+
+.moment-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.moment-card__gate,
+.moment-edit__warning {
+  color: var(--warning);
+}
+
+.moment-edit {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border-block-start: 1px solid var(--line-1);
+  border-block-end: 1px solid var(--line-1);
+  background: var(--ink-2);
+}
+
+.moment-edit__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s2);
+}
+
+.moment-edit > footer {
+  align-items: center;
+}
+
+.moment-edit > footer small,
+.moment-version__range {
+  color: var(--paper-3);
+  font-size: var(--type-small);
+}
+
+.moment-version {
+  display: grid;
+  gap: var(--s2);
+}
+
+.moment-version a {
+  min-block-size: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  color: var(--lime-1);
+  font-size: var(--type-small);
+}
+
+.moment-version__snapshot {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--line-1);
+  background: var(--ink-2);
+}
+
+.moment-version__note,
+.moment-version__provenance {
+  color: var(--paper-2);
+  font-size: var(--type-small);
+  overflow-wrap: anywhere;
+}
+
+.moment-version__provenance {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+}
+
+.moment-version__provenance-row {
+  display: grid;
+  gap: var(--s1);
+}
+
+.moment-version__provenance dt {
+  color: var(--paper-1);
+  font-weight: 600;
+}
+
+.moment-version__provenance dd {
+  margin: 0;
+}
+
+.moments-panel__more {
+  margin-block-start: var(--s3);
+}
+
+.scene-moment-link {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s2);
+  border-inline-start: 2px solid var(--violet-1);
+  background: var(--ink-1);
+}
+
+.scene-moment-link .badge {
+  justify-self: start;
+}
+
+.scene-moment-link__copy {
+  font-size: var(--type-small);
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .moment-composer > header > button {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+
+  .moment-card__actions .button,
+  .moment-version a {
+    min-block-size: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .moment-composer__fields {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .moments-panel__tools,
+  .moment-edit__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .moment-edit > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

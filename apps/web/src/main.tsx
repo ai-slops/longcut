@@ -14,6 +14,7 @@ import "./styles/session-import.css"
 import "./styles/transcript.css"
 import "./styles/word-timing.css"
 import "./styles/sync-diagnostics.css"
+import "./styles/moments.css"
 
 if (import.meta.env.DEV && import.meta.env.VITE_DISABLE_REACT_DEVTOOLS !== "1") {
   void import("react-grab")
