@@ -25,6 +25,7 @@ import {
   SessionImportJobsSchema,
 } from "./session-domain"
 import type { PackageFile } from "./session-files"
+import { type SyncDiagnostics, SyncDiagnosticsSchema } from "./sync-diagnostics-domain"
 import {
   OptionalTranscriptPageSchema,
   type TranscriptPage,
@@ -150,6 +151,12 @@ export const api = {
     request(
       () => client.post(`projects/${projectId}/session-imports/${importId}/cancel`).json(),
       SessionImportJobSchema,
+    ),
+  getSyncDiagnostics: (projectId: string, sessionId: string): Promise<SyncDiagnostics> =>
+    request(
+      () =>
+        client.get(`projects/${projectId}/source-sessions/${sessionId}/sync-diagnostics`).json(),
+      SyncDiagnosticsSchema,
     ),
   getTranscript: (
     projectId: string,
