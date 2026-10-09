@@ -32,7 +32,7 @@ import {
 } from "./transcript-domain"
 
 const ApiErrorSchema = z.object({ error: z.object({ code: z.string(), message: z.string() }) })
-const client = ky.create({
+export const client = ky.create({
   prefixUrl: `${window.location.origin}/api/v1`,
   timeout: 30_000,
   retry: { limit: 1, methods: ["get"] },
@@ -63,7 +63,10 @@ async function parseError(error: HTTPError): Promise<ApiError> {
     : new ApiError("http_error", `Request failed (${error.response.status})`, error.response.status)
 }
 
-async function request<T>(operation: () => Promise<unknown>, schema: z.ZodType<T>): Promise<T> {
+export async function request<T>(
+  operation: () => Promise<unknown>,
+  schema: z.ZodType<T>,
+): Promise<T> {
   try {
     return schema.parse(await operation())
   } catch (error) {
