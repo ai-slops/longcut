@@ -115,16 +115,48 @@ For local ASR it adds:
     engine: "whisper.cpp",
     model: string,
     requested_language: "ko" | "en" | "auto",
-    result_language: string | null
+    result_language: string | null,
+    chunk_seconds: number,
+    overlap_seconds: 2,
+    ownership_policy: "half_open_midpoint",
+    timing_quality: "model_estimated"
   }
 }
 ```
 
 Manual imports remain `origin: "subtitle_import"` and omit `asr`. Cues use the same
 half-open source-frame coordinates and immutable, version-pinned search cursors.
-Whisper millisecond starts round down; ends round up. Chunk offsets are added back
-to source coordinates, and cue ends are bounded by the chunk/source duration. Empty
-or whitespace-only whisper segments create no cue; silence is not fabricated as text.
+ASR cues additionally contain optional `words`; the exact shape is documented in
+[transcript-api.md](transcript-api.md). Word IDs are stable for the immutable
+transcript version. Their source-frame times are whisper.cpp model estimates, not
+verified alignment or forced alignment.
+
+Whisper millisecond starts round down and ends round up. Each canonical chunk owns
+the half-open range `[chunk_seconds * i, chunk_seconds * (i + 1))`, clipped to the
+source. Inference extends two seconds before and after that range, also clipped to
+the source. Local offsets are translated from the inference-window start. A word is
+owned where twice its midpoint is within the canonical half-open owner range; an
+exact midpoint tie therefore belongs to the chunk on the right. Reconciliation
+compares candidates only with retained words from the immediately preceding
+inference chunk. Its positive-duration ranges are indexed once by normalized text,
+sorted, and strictly overlapping ranges are merged. Positive candidates then use a
+logarithmic interval lookup. A candidate is suppressed only when normalized text
+matches and positive estimated source ranges strictly overlap; touching ranges and
+zero-duration point units are never deduplicated. Repetitions emitted by the same
+inference remain distinct even when their model ranges overlap. This bounded policy
+cannot guarantee semantic deduplication when neighboring inferences disagree about
+text or timing.
+
+Empty or whitespace-only results create no word. A model-emitted zero-duration
+lexical word or punctuation unit keeps equal start/end frames when it can join a cue
+containing positive-duration words; duration is never invented and consumers must
+not treat that unit as a selectable interval. A group containing only zero-duration
+results fails the job explicitly because it cannot form a positive-duration cue;
+such words are never silently discarded. Reversed ranges always fail. Coordinates
+and ownership are computed with checked arithmetic before strict inference bounds:
+an unowned context candidate is discarded even if the model extends it beyond the
+extracted window, while an owned candidate outside that window still fails the job.
+Owned timing is never clipped or fabricated.
 
 At enqueue, the server records the current transcript version (including “none”).
 Publication runs in one SQLite transaction and succeeds only if the job is still
@@ -146,8 +178,9 @@ Errors use the normal backend shape:
 - `409 conflict`: runtime unavailable, source unsuitable, active-job collision,
   cancellation/publication race, or transcript/source changed before publication.
 - `422 invalid_input`: malformed JSON, unsupported language, invalid persisted media
-  bounds, malformed/oversized whisper output, a cue over 16 KiB, aggregate retained
-  cue text over 32 MiB, or more than 20,000 cues.
+  bounds, malformed/oversized whisper output, a zero-duration-only cue group, a cue
+  over 16 KiB, aggregate retained cue text over 32 MiB, or a word/candidate/count
+  limit.
 - `500 internal` / `database`: local process, filesystem, or persistence failure.
 
 ## Worker command contract and limits
@@ -157,16 +190,21 @@ produces mono `pcm_s16le` at 16 kHz. It then executes the configured CLI as:
 
 ```text
 <LONGCUT_WHISPER_CLI> -m <LONGCUT_WHISPER_MODEL> -f <chunk.wav> \
-  -l <ko|en|auto> -t 4 -ng -oj -of <output-prefix> -np
+  -l <ko|en|auto> -t 4 -ng -ml 1 -sow -oj -of <output-prefix> -np
 ```
 
 Expected JSON is `transcription[]` with `offsets.from`, `offsets.to` in milliseconds
-and `text`, plus `result.language`. JSON is limited to 16 MiB per chunk. Each trimmed
-cue is limited to 16,384 UTF-8 bytes; the job may retain at most 33,554,432 UTF-8 cue
-text bytes and 20,000 cues. Checked addition rejects overflow. The text and cue-count
-budgets are checked before each cue is copied into the job accumulator, including
-across chunk boundaries. Exceeding any limit fails the job before publication, so an
-older transcript remains current and no partial ASR transcript exists.
+and `text`, plus `result.language`. `-ml 1 -sow` makes regular `-oj` segments the
+whole-word units; full token JSON is not consumed, avoiding byte/token fragments for
+Korean. JSON is limited to 16 MiB per inference window. The job processes at most
+300,000 nonempty word candidates, including unowned overlap context and duplicates;
+this cap applies before ownership or reconciliation, so discarded candidates cannot
+bypass the job bound. It may retain at most 100,000 words, 33,554,432 UTF-8 word-text
+bytes, 20,000 readable cues, and 33,554,432 UTF-8 cue-text bytes. A word and a cue are
+each limited to 16,384 UTF-8 bytes. Cues contain at most 12 words and split earlier
+to honor the byte limit, so 100,000 short words require at most 8,334 cues. Checked
+arithmetic rejects overflow. Exceeding any limit fails the job before publication,
+so an older transcript remains current and no partial ASR transcript exists.
 
 Stderr is bounded. Chunks are processed sequentially inside each job; global active
 jobs are bounded by configuration. Temporary WAV/JSON files are removed and no
@@ -175,7 +213,8 @@ propagated as job failures. Final work-directory cleanup failures are logged wit
 job ID and path; they also fail an otherwise successful job before publication.
 
 Alpha limitations: no model download or model management, no diarization/speaker
-labels, no word timestamps, no retry/resume, no GPU/device controls, and no speech
-accuracy claim. Automated backend tests use a fake CLI to verify command/persistence/
-API behavior; they are explicitly not speech-accuracy tests. A real CLI/model speech
-smoke test remains an installation validation step.
+labels, no forced alignment, no retry/resume, no GPU/device controls, and no speech
+accuracy or guaranteed overlap-deduplication claim. Automated backend tests use a
+fake CLI to verify command/persistence/API behavior; they are explicitly not
+speech-accuracy tests. A real CLI/model speech smoke test remains an installation
+validation step.
