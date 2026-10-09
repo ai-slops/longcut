@@ -50,3 +50,14 @@ pub async fn cancel(
     state.asr.cancel(&job_id).await;
     Ok(Json(job))
 }
+
+pub async fn resume(
+    State(state): State<AppState>,
+    Path((project_id, source_id, job_id)): Path<(String, String, String)>,
+) -> AppResult<(StatusCode, Json<AsrJob>)> {
+    let job = state
+        .asr
+        .resume(&state, &project_id, &source_id, &job_id)
+        .await?;
+    Ok((StatusCode::ACCEPTED, Json(job)))
+}

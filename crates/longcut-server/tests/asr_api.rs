@@ -164,6 +164,7 @@ async fn local_job_publishes_searchable_transcript_without_edit_revision_change(
     .await;
     assert_eq!(response.status(), StatusCode::ACCEPTED);
     let accepted = body(response).await;
+    assert_eq!(accepted["resume_eligible"], false);
     let job_id = accepted["id"].as_str().expect("job id");
     let ready = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {

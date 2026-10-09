@@ -95,6 +95,10 @@ pub fn router(state: AppState) -> Router {
                     post(crate::asr::http::cancel),
                 )
                 .route(
+                    "/projects/{id}/sources/{source_id}/asr/{job_id}/resume",
+                    post(crate::asr::http::resume),
+                )
+                .route(
                     "/projects/{id}/renders",
                     post(crate::media_http::create_render),
                 )
