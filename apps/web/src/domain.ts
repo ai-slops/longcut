@@ -1,5 +1,19 @@
 import { z } from "zod"
+import { MomentSchema, SceneMomentSchema } from "./moment-domain.ts"
 import { SourceSessionSummarySchema } from "./session-domain.ts"
+
+export type { Command } from "./command.ts"
+export {
+  type Moment,
+  type MomentEvidence,
+  MomentEvidenceSchema,
+  type MomentEvidenceSelection,
+  MomentEvidenceSelectionSchema,
+  MomentSchema,
+  MomentVersionResponseSchema,
+  NarrativeRoleSchema,
+  SceneMomentSchema,
+} from "./moment-domain.ts"
 
 const Id = z.string().min(1)
 const Frame = z.string().regex(/^\d+$/)
@@ -42,6 +56,7 @@ export const SceneSchema = z.object({
   caption: z.string(),
   locked: z.boolean(),
   manual: z.boolean(),
+  moment: SceneMomentSchema.nullable().default(null),
 })
 
 export const FeedbackSchema = z.object({
@@ -148,6 +163,7 @@ export const ProjectSchema = z.object({
   sources: z.array(SourceSchema),
   source_sessions: z.array(SourceSessionSummarySchema).default([]),
   scenes: z.array(SceneSchema),
+  moments: z.array(MomentSchema).default([]),
   feedback: z.array(FeedbackSchema),
   change_sets: z.array(ChangeSetSchema),
   renders: z.array(RenderSchema),
@@ -174,62 +190,3 @@ export type ChangeSet = z.infer<typeof ChangeSetSchema>
 export type Render = z.infer<typeof RenderSchema>
 export type Project = z.infer<typeof ProjectSchema>
 export type ProjectSummary = z.infer<typeof ProjectSummarySchema>
-
-export type Command =
-  | { readonly type: "set_brief"; readonly brief: string }
-  | { readonly type: "rename_project"; readonly title: string }
-  | { readonly type: "set_source_role"; readonly source_id: string; readonly role: Source["role"] }
-  | {
-      readonly type: "insert_scene"
-      readonly source_id: string
-      readonly in_frame: string
-      readonly out_frame: string
-      readonly title: string
-    }
-  | {
-      readonly type: "trim_scene"
-      readonly scene_id: string
-      readonly in_frame: string
-      readonly out_frame: string
-    }
-  | { readonly type: "split_scene"; readonly scene_id: string; readonly offset_frame: string }
-  | {
-      readonly type: "move_scene"
-      readonly scene_id: string
-      readonly before_scene_id: string | null
-    }
-  | { readonly type: "delete_scene"; readonly scene_id: string }
-  | {
-      readonly type: "update_scene"
-      readonly scene_id: string
-      readonly title: string
-      readonly purpose: string
-      readonly caption: string
-    }
-  | { readonly type: "set_camera"; readonly scene_id: string; readonly camera: Camera | null }
-  | { readonly type: "lock_scene"; readonly scene_id: string; readonly locked: boolean }
-  | {
-      readonly type: "create_feedback"
-      readonly scene_id: string
-      readonly start_frame: string
-      readonly end_frame: string
-      readonly body: string
-      readonly pin: { readonly x: number; readonly y: number } | null
-      readonly render_id: string | null
-    }
-  | { readonly type: "resolve_feedback"; readonly feedback_id: string; readonly resolved: boolean }
-  | {
-      readonly type: "create_change_set"
-      readonly title: string
-      readonly intent: string
-      readonly operations: readonly Operation[]
-      readonly evidence: readonly string[]
-    }
-  | {
-      readonly type: "apply_change_set"
-      readonly change_set_id: string
-      readonly operation_ids: readonly string[]
-    }
-  | { readonly type: "reject_change_set"; readonly change_set_id: string }
-  | { readonly type: "undo" }
-  | { readonly type: "redo" }
