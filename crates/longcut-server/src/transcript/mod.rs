@@ -8,6 +8,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::asr::AsrTranscriptMetadata;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Cue {
     pub id: String,
@@ -24,9 +26,18 @@ pub struct TranscriptPage {
     pub created_at: String,
     pub frame_rate: u32,
     pub cue_count: usize,
-    pub origin: String,
+    pub origin: TranscriptOrigin,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asr: Option<AsrTranscriptMetadata>,
     pub cues: Vec<Cue>,
     pub next_cursor: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TranscriptOrigin {
+    SubtitleImport,
+    LocalAsr,
 }
 
 #[derive(Deserialize)]

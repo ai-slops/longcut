@@ -41,6 +41,7 @@ impl Store {
         let store = Self { pool };
         store.migrate_sessions(path).await?;
         store.migrate_transcripts(path).await?;
+        store.migrate_asr(path).await?;
         store.recover_interrupted().await?;
         Ok(store)
     }
@@ -100,6 +101,26 @@ impl Store {
             .execute(&self.pool)
             .await?;
         self.recover_ai_runs().await?;
+        self.recover_asr_jobs().await?;
+        Ok(())
+    }
+
+    async fn recover_asr_jobs(&self) -> AppResult<()> {
+        for row in sqlx::query("SELECT id,job FROM asr_jobs WHERE status IN ('queued','running')")
+            .fetch_all(&self.pool)
+            .await?
+        {
+            let id: String = row.try_get("id")?;
+            let mut job: crate::asr::AsrJob = serde_json::from_str(row.try_get("job")?)?;
+            job.status = crate::asr::AsrJobStatus::Failed;
+            job.error = Some("ASR processing was interrupted by server restart".into());
+            job.updated_at = Utc::now().to_rfc3339();
+            sqlx::query("UPDATE asr_jobs SET job=?,status='failed' WHERE id=?")
+                .bind(serde_json::to_string(&job)?)
+                .bind(id)
+                .execute(&self.pool)
+                .await?;
+        }
         Ok(())
     }
 

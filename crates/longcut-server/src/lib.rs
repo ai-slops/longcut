@@ -8,6 +8,7 @@ use error::AppResult;
 use store::Store;
 
 pub mod ai;
+pub mod asr;
 pub mod domain;
 pub mod error;
 pub mod http;
@@ -27,6 +28,7 @@ pub struct AppState {
     pub codex: Arc<dyn ai::CodexClient>,
     pub openai: ai::OpenAiProvider,
     pub sessions: Arc<session_import::Service>,
+    pub asr: Arc<asr::Service>,
     ai_cancellations: Arc<tokio::sync::Mutex<HashMap<String, tokio_util::sync::CancellationToken>>>,
 }
 
@@ -52,17 +54,41 @@ impl AppState {
         codex: Arc<dyn ai::CodexClient>,
         openai: ai::OpenAiProvider,
     ) -> AppResult<Self> {
+        Self::initialize_with_all(data, codex, openai, asr::AsrConfig::from_env()).await
+    }
+
+    pub async fn initialize_with_asr_config(
+        data: &Path,
+        config: asr::AsrConfig,
+    ) -> AppResult<Self> {
+        Self::initialize_with_all(
+            data,
+            Arc::new(ai::HttpCodexClient::from_env()?),
+            ai::OpenAiProvider::disabled(),
+            config,
+        )
+        .await
+    }
+
+    async fn initialize_with_all(
+        data: &Path,
+        codex: Arc<dyn ai::CodexClient>,
+        openai: ai::OpenAiProvider,
+        asr_config: asr::AsrConfig,
+    ) -> AppResult<Self> {
         let artifacts = data.join("artifacts");
         tokio::fs::create_dir_all(&artifacts).await?;
         let store = Store::open(&data.join("longcut.sqlite3")).await?;
         let sessions =
             Arc::new(session_import::Service::initialize(data, &store, &artifacts).await?);
+        let asr = asr::Service::initialize(data, asr_config).await?;
         Ok(Self {
             store,
             artifacts: Arc::new(artifacts),
             codex,
             openai,
             sessions,
+            asr,
             ai_cancellations: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         })
     }

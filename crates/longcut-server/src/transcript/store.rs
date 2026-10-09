@@ -1,4 +1,4 @@
-use super::{Cue, ImportTranscript, Search, TranscriptPage, parse};
+use super::{Cue, ImportTranscript, Search, TranscriptOrigin, TranscriptPage, parse};
 use crate::{
     error::{AppError, AppResult},
     model::Project,
@@ -43,7 +43,8 @@ impl Store {
             created_at: Utc::now().to_rfc3339(),
             frame_rate: project.frame_rate,
             cue_count: cues.len(),
-            origin: "subtitle_import".into(),
+            origin: TranscriptOrigin::SubtitleImport,
+            asr: None,
             cues: vec![],
             next_cursor: None,
         };
