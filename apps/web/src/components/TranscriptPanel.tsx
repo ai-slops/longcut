@@ -201,6 +201,7 @@ export function TranscriptPanel({ projectId, source, onSelectCue }: TranscriptPa
               <TranscriptCueRow
                 key={cue.id}
                 cue={cue}
+                transcriptId={page.id}
                 frameRate={page.frame_rate}
                 onSelect={onSelectCue}
               />

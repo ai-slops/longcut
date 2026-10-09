@@ -6,11 +6,17 @@ import { formatFrames } from "./Ui"
 
 type TranscriptCueRowProps = {
   readonly cue: TranscriptCue
+  readonly transcriptId: string
   readonly frameRate: number
   readonly onSelect: (selection: CueSelection) => void
 }
 
-export function TranscriptCueRow({ cue, frameRate, onSelect }: TranscriptCueRowProps) {
+export function TranscriptCueRow({
+  cue,
+  transcriptId,
+  frameRate,
+  onSelect,
+}: TranscriptCueRowProps) {
   const [expanded, setExpanded] = useState(false)
   const words = cue.words ?? []
   const hasWords = words.length > 0
@@ -21,7 +27,7 @@ export function TranscriptCueRow({ cue, frameRate, onSelect }: TranscriptCueRowP
         <button
           className="transcript-cue__select"
           type="button"
-          onClick={() => onSelect(cueSelection(cue))}
+          onClick={() => onSelect(cueSelection(cue, transcriptId))}
         >
           <code>{formatFrames(cue.start_frame, frameRate)}</code>
           <span>{cue.text}</span>
@@ -44,7 +50,7 @@ export function TranscriptCueRow({ cue, frameRate, onSelect }: TranscriptCueRowP
           <small>Model-estimated word timing · not verified alignment</small>
           <div className="word-timing__units">
             {words.map((word) => {
-              const selection = wordSelection(word)
+              const selection = wordSelection(word, transcriptId)
               return selection ? (
                 <button
                   className="word-timing__word"

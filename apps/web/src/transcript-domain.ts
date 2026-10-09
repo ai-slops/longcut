@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { MomentEvidenceSelection } from "./domain"
 
 const FrameSchema = z.string().regex(/^\d+$/)
 
@@ -83,19 +84,29 @@ export type CueSelection = {
   readonly sourceFrame: number
   readonly inFrame: number
   readonly outFrame: number
+  readonly evidence: MomentEvidenceSelection
+  readonly previewText: string
 }
 
-export function cueSelection(cue: TranscriptCue): CueSelection {
+export function cueSelection(cue: TranscriptCue, transcriptId: string): CueSelection {
   return {
     sourceFrame: Number(cue.start_frame),
     inFrame: Number(cue.start_frame),
     outFrame: Number(cue.end_frame),
+    evidence: { transcript_id: transcriptId, cue_ids: [cue.id], word_ids: [] },
+    previewText: cue.text,
   }
 }
 
-export function wordSelection(word: TranscriptWord): CueSelection | null {
+export function wordSelection(word: TranscriptWord, transcriptId: string): CueSelection | null {
   if (BigInt(word.end_frame) <= BigInt(word.start_frame)) return null
-  return cueSelection(word)
+  return {
+    sourceFrame: Number(word.start_frame),
+    inFrame: Number(word.start_frame),
+    outFrame: Number(word.end_frame),
+    evidence: { transcript_id: transcriptId, cue_ids: [], word_ids: [word.id] },
+    previewText: word.text,
+  }
 }
 
 export function transcriptRequestMatches(

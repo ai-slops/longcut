@@ -87,9 +87,15 @@ test("describes local ASR provenance as machine-generated and unverified", () =>
 test("maps a cue to the independent Source seek and range", () => {
   // Given a half-open transcript cue.
   // When it is selected in the transcript list.
-  const selection = cueSelection(page.cues[0])
+  const selection = cueSelection(page.cues[0], page.id)
   // Then Source seek, In, and Out use its exact normalized frames.
-  assert.deepEqual(selection, { sourceFrame: 30, inFrame: 30, outFrame: 75 })
+  assert.deepEqual(selection, {
+    sourceFrame: 30,
+    inFrame: 30,
+    outFrame: 75,
+    evidence: { transcript_id: "transcript-one", cue_ids: ["cue-one"], word_ids: [] },
+    previewText: "첫 번째 자막",
+  })
 })
 
 test("rejects a late transcript response after a newer request starts", () => {
@@ -145,10 +151,16 @@ test("maps only positive-duration ASR words to the shared Source selection", () 
   const spoken = { id: "spoken", start_frame: "30", end_frame: "42", text: "말" }
   const punctuation = { id: "punctuation", start_frame: "42", end_frame: "42", text: "." }
   // When each word requests a Source selection.
-  const spokenSelection = wordSelection(spoken)
-  const punctuationSelection = wordSelection(punctuation)
+  const spokenSelection = wordSelection(spoken, page.id)
+  const punctuationSelection = wordSelection(punctuation, page.id)
   // Then only the positive interval seeks Source and sets In/Out.
-  assert.deepEqual(spokenSelection, { sourceFrame: 30, inFrame: 30, outFrame: 42 })
+  assert.deepEqual(spokenSelection, {
+    sourceFrame: 30,
+    inFrame: 30,
+    outFrame: 42,
+    evidence: { transcript_id: "transcript-one", cue_ids: [], word_ids: ["spoken"] },
+    previewText: "말",
+  })
   assert.equal(punctuationSelection, null)
 })
 
