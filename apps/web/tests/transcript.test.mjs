@@ -5,6 +5,7 @@ import {
   TranscriptPageSchema,
   transcriptProvenance,
   transcriptRequestMatches,
+  wordSelection,
 } from "../src/transcript-domain.ts"
 
 const page = {
@@ -105,4 +106,65 @@ test("rejects a late transcript response after Source deselection invalidates it
   const matches = transcriptRequestMatches(4, 3)
   // Then clearing the selected Source cannot restore its transcript.
   assert.equal(matches, false)
+})
+
+test("parses ASR word timing and its explicit model-estimated metadata", () => {
+  // Given a current local-ASR transcript response containing word units.
+  const response = {
+    ...page,
+    origin: "local_asr",
+    asr: {
+      engine: "whisper.cpp",
+      model: "/models/ggml-small.bin",
+      requested_language: "ko",
+      result_language: "ko",
+      chunk_seconds: 600,
+      overlap_seconds: 2,
+      ownership_policy: "half_open_midpoint",
+      timing_quality: "model_estimated",
+    },
+    cues: [
+      {
+        ...page.cues[0],
+        words: [
+          { id: "word-one", start_frame: "30", end_frame: "42", text: "첫" },
+          { id: "word-punctuation", start_frame: "42", end_frame: "42", text: "." },
+        ],
+      },
+    ],
+  }
+  // When it crosses the browser boundary.
+  const parsed = TranscriptPageSchema.parse(response)
+  // Then timing metadata and equal-frame punctuation remain exact strings.
+  assert.equal(parsed.asr.timing_quality, "model_estimated")
+  assert.deepEqual(parsed.cues[0]?.words?.[1], response.cues[0].words[1])
+})
+
+test("maps only positive-duration ASR words to the shared Source selection", () => {
+  // Given a selectable spoken word and preserved zero-duration punctuation.
+  const spoken = { id: "spoken", start_frame: "30", end_frame: "42", text: "말" }
+  const punctuation = { id: "punctuation", start_frame: "42", end_frame: "42", text: "." }
+  // When each word requests a Source selection.
+  const spokenSelection = wordSelection(spoken)
+  const punctuationSelection = wordSelection(punctuation)
+  // Then only the positive interval seeks Source and sets In/Out.
+  assert.deepEqual(spokenSelection, { sourceFrame: 30, inFrame: 30, outFrame: 42 })
+  assert.equal(punctuationSelection, null)
+})
+
+test("does not accept fabricated word timing on subtitle imports", () => {
+  // Given a manual subtitle payload carrying ASR-only word units.
+  const response = {
+    ...page,
+    cues: [
+      {
+        ...page.cues[0],
+        words: [{ id: "fake", start_frame: "30", end_frame: "75", text: "fake" }],
+      },
+    ],
+  }
+  // When the subtitle-import variant crosses the browser boundary.
+  const parsed = TranscriptPageSchema.safeParse(response)
+  // Then the contract rejects timing that the importer cannot declare.
+  assert.equal(parsed.success, false)
 })
