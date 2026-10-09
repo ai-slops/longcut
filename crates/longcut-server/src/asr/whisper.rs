@@ -56,7 +56,7 @@ pub(super) async fn transcribe(
         .arg(request.wav)
         .arg("-l")
         .arg(request.language.cli_value())
-        .args(["-t", "4", "-ng", "-oj", "-of"])
+        .args(["-t", "4", "-ng", "-ml", "1", "-sow", "-oj", "-of"])
         .arg(request.prefix)
         .arg("-np");
     process::run(

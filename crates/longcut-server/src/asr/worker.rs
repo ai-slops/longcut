@@ -11,8 +11,9 @@ use crate::{
 };
 
 use super::{
-    AsrJob, AsrTranscriptMetadata, Service, SourceSnapshot, audio,
-    conversion::{CueAccumulator, CueWindow, merge_language},
+    AsrJob, AsrOwnershipPolicy, AsrTimingQuality, AsrTranscriptMetadata, Service, SourceSnapshot,
+    audio,
+    conversion::{ChunkLayout, CueAccumulator, OVERLAP_SECONDS, merge_language},
     whisper,
 };
 
@@ -118,6 +119,11 @@ async fn run(context: &WorkContext<'_>) -> AppResult<()> {
                 model: context.job.model.clone(),
                 requested_language: context.job.language,
                 result_language,
+                chunk_seconds: context.service.config.chunk_seconds,
+                overlap_seconds: u32::try_from(OVERLAP_SECONDS)
+                    .map_err(|_| AppError::Invalid("ASR overlap metadata overflow".into()))?,
+                ownership_policy: AsrOwnershipPolicy::HalfOpenMidpoint,
+                timing_quality: AsrTimingQuality::ModelEstimated,
             },
         )
         .await?;
@@ -127,13 +133,14 @@ async fn run(context: &WorkContext<'_>) -> AppResult<()> {
 async fn process_chunks(context: ChunkContext<'_>) -> AppResult<(Vec<Cue>, Option<String>)> {
     let mut cues = CueAccumulator::new();
     let mut observed_language = None;
+    let layout = ChunkLayout {
+        chunk_frames: context.chunk_frames,
+        duration_frames: context.work.source.duration_frames,
+        frame_rate: context.work.source.frame_rate,
+    };
     for index in 0..context.total_chunks {
-        let start_frame = u64::from(index) * context.chunk_frames;
-        let end_frame = context
-            .work
-            .source
-            .duration_frames
-            .min(start_frame.saturating_add(context.chunk_frames));
+        let window = layout.window(index)?;
+        let (inference_start, inference_end, _, _) = window.bounds();
         let wav = context.work_path.join(format!("chunk-{index}.wav"));
         let prefix = context.work_path.join(format!("chunk-{index}"));
         audio::extract_chunk(
@@ -141,8 +148,8 @@ async fn process_chunks(context: ChunkContext<'_>) -> AppResult<(Vec<Cue>, Optio
             audio::AudioChunk {
                 source: context.source_path,
                 output: &wav,
-                start_frame,
-                end_frame,
+                start_frame: inference_start,
+                end_frame: inference_end,
                 frame_rate: context.work.source.frame_rate,
             },
             context.work.cancellation,
@@ -159,14 +166,7 @@ async fn process_chunks(context: ChunkContext<'_>) -> AppResult<(Vec<Cue>, Optio
         )
         .await?;
         observed_language = merge_language(observed_language, output.result.language.clone());
-        cues.append(
-            output,
-            CueWindow {
-                start: start_frame,
-                end: end_frame,
-                frame_rate: context.work.source.frame_rate,
-            },
-        )?;
+        cues.append(output, window)?;
         cleanup_chunk(&wav, &prefix).await?;
         context
             .work
@@ -175,7 +175,7 @@ async fn process_chunks(context: ChunkContext<'_>) -> AppResult<(Vec<Cue>, Optio
             .progress_asr(&context.work.job.id, index + 1)
             .await?;
     }
-    Ok((cues.into_cues(), observed_language))
+    Ok((cues.into_cues()?, observed_language))
 }
 
 async fn cleanup_chunk(wav: &Path, prefix: &Path) -> AppResult<()> {

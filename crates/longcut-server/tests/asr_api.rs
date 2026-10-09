@@ -115,7 +115,7 @@ async fn local_job_publishes_searchable_transcript_without_edit_revision_change(
     );
     executable(
         &cli,
-        "#!/bin/sh\nprefix=\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = \"-of\" ]; then shift; prefix=$1; fi\n  shift\ndone\nprintf '%s' '{\"transcription\":[{\"offsets\":{\"from\":0,\"to\":1000},\"text\":\" 로컬 음성 \"}],\"result\":{\"language\":\"ko\"}}' > \"${prefix}.json\"\n",
+        "#!/bin/sh\nprefix=\nmax_len=\nsplit_on_word=\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = \"-of\" ]; then shift; prefix=$1; fi\n  if [ \"$1\" = \"-ml\" ]; then shift; max_len=$1; fi\n  if [ \"$1\" = \"-sow\" ]; then split_on_word=1; fi\n  shift\ndone\n[ \"$max_len\" = 1 ] && [ \"$split_on_word\" = 1 ] || exit 9\nprintf '%s' '{\"transcription\":[{\"offsets\":{\"from\":0,\"to\":400},\"text\":\" 로컬\"},{\"offsets\":{\"from\":400,\"to\":1000},\"text\":\" 음성\"}],\"result\":{\"language\":\"ko\"}}' > \"${prefix}.json\"\n",
     );
     let config = AsrConfig::from_paths(cli, model).with_ffmpeg(ffmpeg);
     let state = AppState::initialize_with_asr_config(data.path(), config)
@@ -205,8 +205,16 @@ async fn local_job_publishes_searchable_transcript_without_edit_revision_change(
     assert_eq!(transcript["origin"], "local_asr");
     assert_eq!(transcript["asr"]["engine"], "whisper.cpp");
     assert_eq!(transcript["asr"]["result_language"], "ko");
+    assert_eq!(transcript["asr"]["overlap_seconds"], 2);
+    assert_eq!(transcript["asr"]["ownership_policy"], "half_open_midpoint");
+    assert_eq!(transcript["asr"]["timing_quality"], "model_estimated");
     assert_eq!(transcript["cues"][0]["start_frame"], "0");
     assert_eq!(transcript["cues"][0]["end_frame"], "30");
+    assert_eq!(transcript["cues"][0]["text"], "로컬 음성");
+    assert_eq!(
+        transcript["cues"][0]["words"].as_array().map(Vec::len),
+        Some(2)
+    );
     assert_eq!(
         state
             .store
