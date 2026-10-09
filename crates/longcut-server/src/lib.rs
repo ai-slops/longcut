@@ -19,6 +19,7 @@ mod ordinary_session;
 pub mod render;
 mod session_import;
 pub mod store;
+pub mod sync_diagnostics;
 pub mod transcript;
 
 #[derive(Clone)]

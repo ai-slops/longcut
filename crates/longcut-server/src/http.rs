@@ -63,6 +63,10 @@ pub fn router(state: AppState) -> Router {
                     get(crate::session_import::session),
                 )
                 .route(
+                    "/projects/{id}/source-sessions/{session_id}/sync-diagnostics",
+                    get(crate::sync_diagnostics::http::get),
+                )
+                .route(
                     "/projects/{id}/source-sessions/{session_id}/assets/{asset_id}",
                     get(crate::session_import::asset),
                 )
