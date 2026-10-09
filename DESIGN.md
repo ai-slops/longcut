@@ -53,7 +53,7 @@ The interface uses a single deliberate sans family, **IBM Plex Sans**, with IBM 
 | `--type-h3` | 15px / 1.3 | 600 | Card/scene title |
 | `--type-body` | 14px / 1.45 | 400 | Default UI copy |
 | `--type-small` | 12px / 1.4 | 450 | Secondary copy |
-| `--type-micro` | 11px / 1.3 | 550 | Uppercase labels |
+| `--type-micro` | 12px / 1.3 | 550 | Uppercase labels |
 
 Frame counts, revisions, dimensions, and timecodes use the mono family. Visible body copy never drops below 12px; interactive labels are at least 12px.
 
@@ -69,7 +69,7 @@ Geometry tokens: `--r1` 4px, `--r2` 8px, `--r3` 12px, `--agent-rail` 320px, `--a
 
 Media artboards retain a strict 16:9 content coordinate space at every viewport;
 camera geometry and comment coordinates must not include decorative letterboxing.
-The mobile header reserves separate 52px identity and 40px navigation rows.
+The mobile header reserves separate 52px identity and 44px navigation rows.
 Exact render review supports independent side-by-side version playback, not claimed
 frame-synchronized A/B playback.
 
@@ -154,6 +154,13 @@ The `/showcase` query route renders every primitive in default, selected, disabl
 - **Scale**: render at most 40 rows per unsupported mapping, gap, overlap, or segment section initially, then add 40 per explicit request; long range sections may collapse, but every declared item remains reachable.
 - **Trust**: rational values stay numerator/denominator strings; coverage is the union of declared TimeMap ranges, not all-stream or verified media coverage.
 - **Accessibility**: the persistent disclosure button labels the section in collapsed and expanded states; diagnostic values use at least `--type-small`, and range summaries provide 44px targets on narrow or coarse-pointer layouts.
+
+### MomentComposer / MomentCard
+- **Structure**: compact Source-range composer for label, note, and narrative role; Story cards remain independent from scene order and expose explicit editorial actions.
+- **States**: draft, reviewed, rejected, archived, busy, stale/error, transcript-evidence selected, and evidence cleared after Source/range drift.
+- **Trust**: review is labelled editorial only, never verified ASR or synchronization. Frozen quote and transcript origin appear only when returned by the backend; commands send immutable transcript/cue/word IDs and never client-authored quotation text.
+- **Scale**: Story initially renders 40 filtered Moments and reveals 40 more per explicit action; all archived heads remain reachable.
+- **Accessibility**: copy is at least `--type-small`; action groups wrap without clipping and controls reach 44px at narrow widths or with coarse pointers. Korean and other CJK text uses `word-break: keep-all` with safe overflow wrapping.
 
 ## 6. Motion & Interaction
 
