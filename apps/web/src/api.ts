@@ -1,5 +1,5 @@
 import ky, { HTTPError } from "ky"
-import { z } from "zod"
+import type { z } from "zod"
 import {
   type AiRequest,
   type AiRun,
@@ -10,8 +10,11 @@ import {
   type ProviderStatus,
   ProviderStatusesSchema,
 } from "./ai-domain"
+import { ApiError, parseApiError } from "./api-error"
 import {
   type Command,
+  type Moment,
+  MomentVersionResponseSchema,
   type Project,
   ProjectSchema,
   type ProjectSummary,
@@ -19,6 +22,11 @@ import {
   type Render,
   RenderSchema,
 } from "./domain"
+import {
+  type MomentVersionFetch,
+  momentVersionIdentity,
+  versionResponseMatchesIdentity,
+} from "./moment-version-request"
 import {
   type SessionImportJob,
   SessionImportJobSchema,
@@ -32,37 +40,13 @@ import {
   TranscriptPageSchema,
 } from "./transcript-domain"
 
-const ApiErrorSchema = z.object({ error: z.object({ code: z.string(), message: z.string() }) })
+export { ApiError } from "./api-error"
+
 export const client = ky.create({
   prefixUrl: `${window.location.origin}/api/v1`,
   timeout: 30_000,
   retry: { limit: 1, methods: ["get"] },
 })
-
-export class ApiError extends Error {
-  readonly code: string
-  readonly status: number
-
-  constructor(code: string, message: string, status: number) {
-    super(message)
-    this.name = "ApiError"
-    this.code = code
-    this.status = status
-  }
-}
-
-async function parseError(error: HTTPError): Promise<ApiError> {
-  let body: unknown
-  try {
-    body = JSON.parse(await error.response.text())
-  } catch {
-    body = null
-  }
-  const result = ApiErrorSchema.safeParse(body)
-  return result.success
-    ? new ApiError(result.data.error.code, result.data.error.message, error.response.status)
-    : new ApiError("http_error", `Request failed (${error.response.status})`, error.response.status)
-}
 
 export async function request<T>(
   operation: () => Promise<unknown>,
@@ -71,7 +55,7 @@ export async function request<T>(
   try {
     return schema.parse(await operation())
   } catch (error) {
-    if (error instanceof HTTPError) throw await parseError(error)
+    if (error instanceof HTTPError) throw await parseApiError(error)
     throw error
   }
 }
@@ -96,6 +80,28 @@ export const api = {
           .json(),
       ProjectSchema,
     ),
+  getMomentVersion: async ({
+    projectId,
+    momentId,
+    version,
+    signal,
+  }: MomentVersionFetch): Promise<Moment> => {
+    const response = await request(
+      () =>
+        client
+          .get(`projects/${projectId}/moments/${momentId}/versions/${version}`, {
+            signal,
+          })
+          .json(),
+      MomentVersionResponseSchema,
+    )
+    if (
+      !versionResponseMatchesIdentity(momentVersionIdentity(projectId, momentId, version), response)
+    ) {
+      throw new ApiError("response_identity", "Moment version response identity mismatch.", 502)
+    }
+    return response.snapshot
+  },
   importMedia: (
     project: Project,
     file: File,
