@@ -48,6 +48,34 @@ adds only verified adapters. Unsupported/offline contract sources remain visible
 the session summary with a reason. A degraded import requires explicit acknowledgement.
 Confirmation against a stale revision returns 409 without changing the project.
 
+## Continuous source timestamp normalization
+
+The editor adapter accepts one continuous, unit-rate video segment with at most one
+continuous audio segment. A nonzero original media origin is supported when every AV
+binding has the same physical origin and that origin is exactly representable at
+FFmpeg's microsecond input-offset precision. The mapped video start must also equal
+the selected stream's first packet PTS; an interior subrange is rejected because
+`-itsoffset` plus `-t` does not prove an exact lossless crop. The adapter applies the
+inverse origin offset while remuxing and verifies a zero-origin video/container result.
+Duration comes from `media_range.end - media_range.start`, never from an endpoint,
+and output frames use an exact checked ceiling so a partial final frame remains
+addressable.
+
+The uploaded package and original media asset remain immutable. `SourceSessionRecord`
+keeps each original `media_start` and `media_end`; normalization changes only the
+generated editor artifact. Each source attempt writes remux and derivative files in
+an isolated private directory; only a completely successful artifact set moves into
+publishable staging, and every failed attempt removes its owned directory. AAC
+priming packet timestamps remain packet evidence and do not redefine the declared
+audible source origin.
+
+The adapter still declines discontinuous/split mappings, non-unit-rate or drifted
+mappings, unequal AV session intervals, unequal AV media origins, and origins or
+durations that would require sub-microsecond rounding. Interior source subranges and
+negative origins are not yet claimed as supported interoperability cases. These
+sources and their exact original mappings remain in provenance and appear with
+`EDITOR_ADAPTER_UNAVAILABLE`; they are not silently approximated.
+
 UI workflow: select directory → upload → poll validating job → inspect all source
 statuses/warnings → explicitly confirm (acknowledge degraded if needed) → refresh
 project → play/edit eligible sources. Cancellation and failure never partially append
