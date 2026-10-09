@@ -9,7 +9,7 @@ use crate::{
     AppState,
     error::AppResult,
     media,
-    model::{CommandRequest, CreateProject, Project, ProjectSummary},
+    model::{CommandRequest, CreateProject, MomentVersionRecord, Project, ProjectSummary},
 };
 
 pub fn router(state: AppState) -> Router {
@@ -27,6 +27,10 @@ pub fn router(state: AppState) -> Router {
                 .route("/projects", get(list_projects).post(create_project))
                 .route("/projects/{id}", get(get_project))
                 .route("/projects/{id}/commands", post(command))
+                .route(
+                    "/projects/{id}/moments/{moment_id}/versions/{version}",
+                    get(moment_version),
+                )
                 .route(
                     "/projects/{id}/ai/runs",
                     get(crate::ai::http::list_runs).post(crate::ai::http::create_run),
@@ -142,4 +146,23 @@ async fn command(
     uuid::Uuid::parse_str(&input.command_id)
         .map_err(|_| crate::error::AppError::Invalid("command_id must be a UUID".into()))?;
     Ok(Json(state.store.command(&id, &input).await?))
+}
+
+async fn moment_version(
+    State(state): State<AppState>,
+    Path((project_id, moment_id, version)): Path<(String, String, String)>,
+) -> AppResult<Json<MomentVersionRecord>> {
+    version
+        .parse::<u64>()
+        .map_err(|_| crate::error::AppError::Invalid("moment version must be decimal".into()))?;
+    Ok(Json(
+        state
+            .store
+            .moment_version(crate::store::MomentVersionKey {
+                project_id: &project_id,
+                moment_id: &moment_id,
+                version: &version,
+            })
+            .await?,
+    ))
 }

@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[derive(Serialize)]
-struct Lineage<'a> {
+pub(super) struct Lineage<'a> {
     project_id: &'a str,
     revision: &'a str,
     frame_rate: u32,
@@ -38,6 +38,9 @@ struct LineageScene<'a> {
     camera_in_frame: Option<&'a str>,
     source_origin: Option<Origin<'a>>,
     camera_origin: Option<Origin<'a>>,
+    moment_id: Option<&'a str>,
+    moment_version: Option<&'a str>,
+    moment_version_url: Option<String>,
 }
 
 pub(super) struct Sidecars {
@@ -70,7 +73,10 @@ pub(super) async fn write(
     })
 }
 
-fn build<'a>(project: &'a Project, render_id: &str) -> AppResult<(String, String, Lineage<'a>)> {
+pub(super) fn build<'a>(
+    project: &'a Project,
+    render_id: &str,
+) -> AppResult<(String, String, Lineage<'a>)> {
     let mut srt = String::new();
     let mut vtt = String::from("WEBVTT\n\n");
     let mut output_frame = 0_u64;
@@ -123,6 +129,20 @@ fn build<'a>(project: &'a Project, render_id: &str) -> AppResult<(String, String
                 .camera
                 .as_ref()
                 .and_then(|camera| origin(project, &camera.source_id)),
+            moment_id: scene
+                .moment
+                .as_ref()
+                .map(|reference| reference.moment_id.as_str()),
+            moment_version: scene
+                .moment
+                .as_ref()
+                .map(|reference| reference.version.as_str()),
+            moment_version_url: scene.moment.as_ref().map(|reference| {
+                format!(
+                    "/api/v1/projects/{}/moments/{}/versions/{}",
+                    project.id, reference.moment_id, reference.version
+                )
+            }),
         });
         output_frame = output_end;
     }

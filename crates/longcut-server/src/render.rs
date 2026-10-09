@@ -1,5 +1,7 @@
 mod segment;
 mod sidecar;
+#[cfg(test)]
+mod sidecar_tests;
 
 use std::path::{Path, PathBuf};
 
