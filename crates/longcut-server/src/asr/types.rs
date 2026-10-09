@@ -72,6 +72,8 @@ pub struct AsrJob {
     pub updated_at: String,
     pub transcript_id: Option<String>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub resume_eligible: bool,
     #[serde(skip)]
     pub(crate) base_transcript_id: Option<String>,
 }
@@ -123,9 +125,26 @@ pub enum AsrTimingQuality {
     ModelEstimated,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct SourceSnapshot {
     pub media_url: String,
     pub duration_frames: u64,
     pub frame_rate: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct ResumeSnapshot {
+    pub source_sha256: String,
+    pub model_sha256: String,
+    pub cli_sha256: String,
+    pub source_media_url: String,
+    pub model_path: String,
+    pub cli_path: String,
+    pub duration_frames: u64,
+    pub frame_rate: u32,
+    pub language: AsrLanguage,
+    pub chunk_seconds: u32,
+    pub overlap_seconds: u32,
+    pub conversion_policy_version: u32,
+    pub argument_policy_version: u32,
 }
