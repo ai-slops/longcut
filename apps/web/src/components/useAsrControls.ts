@@ -9,9 +9,11 @@ import {
   asrJobStorageKey,
   asrRequestMatches,
   canPollAsrJob,
+  canResumeAsrJob,
   canRetryAsrPoll,
   isActiveAsrJob,
 } from "../asr-domain"
+import { AsrSubmissionCoordinator, type AsrSubmissionRequest } from "../asr-submission"
 import type { Source } from "../domain"
 
 type UseAsrControlsInput = {
@@ -20,40 +22,30 @@ type UseAsrControlsInput = {
   readonly onTranscriptReady: () => void
 }
 
-type AsrController = {
-  readonly runtime: AsrRuntimeStatus | null
-  readonly job: AsrJob | null
-  readonly language: AsrLanguage
-  readonly checking: boolean
-  readonly submitting: boolean
-  readonly pollFailed: boolean
-  readonly error: string | null
-  readonly setLanguage: (language: AsrLanguage) => void
-  readonly refreshRuntime: () => Promise<void>
-  readonly start: () => Promise<void>
-  readonly cancel: () => Promise<void>
-  readonly retryPoll: () => void
-}
-
 function errorMessage(reason: unknown): string {
   if (reason instanceof ApiError) return `${reason.message} [${reason.code}]`
   if (reason instanceof Error) return reason.message
   return "An unexpected local ASR error occurred."
 }
 
-export function useAsrControls({
-  projectId,
-  source,
-  onTranscriptReady,
-}: UseAsrControlsInput): AsrController {
+function resumeErrorMessage(reason: unknown): string {
+  if (reason instanceof ApiError && reason.status === 409) {
+    return `Resume was not started because its retained inputs, local model configuration, checkpoints, or current transcript changed, or the previous worker is still stopping. ${reason.message} [${reason.code}]`
+  }
+  return errorMessage(reason)
+}
+
+export function useAsrControls({ projectId, source, onTranscriptReady }: UseAsrControlsInput) {
   const sourceId = source?.id
   const [runtime, setRuntime] = useState<AsrRuntimeStatus | null>(null)
   const [language, setLanguage] = useState<AsrLanguage>("ko")
   const [job, setJob] = useState<AsrJob | null>(null)
   const [checking, setChecking] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
+  const [submission, setSubmission] = useState<"start" | "cancel" | "resume" | null>(null)
+  const submitting = submission !== null
   const [pollFailed, setPollFailed] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [submissionCoordinator] = useState(() => new AsrSubmissionCoordinator())
   const runtimeRequest = useRef<AbortController | null>(null)
   const jobRequest = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
@@ -83,9 +75,10 @@ export function useAsrControls({
 
   useEffect(() => {
     requestVersion.current += 1
+    submissionCoordinator.invalidate()
     jobRequest.current?.abort()
     setJob(null)
-    setSubmitting(false)
+    setSubmission(null)
     setPollFailed(false)
     setError(null)
     announcedTranscript.current = null
@@ -103,6 +96,8 @@ export function useAsrControls({
           asrRequestMatches(requestVersion.current, responseVersion) &&
           asrJobBelongsToSource(recovered, projectId, sourceId)
         ) {
+          setLanguage(recovered.language)
+          announcedTranscript.current = recovered.transcript_id
           setJob(recovered)
           setPollFailed(false)
         }
@@ -118,10 +113,11 @@ export function useAsrControls({
         setError(errorMessage(reason))
       })
     return () => {
+      submissionCoordinator.invalidate()
       controller.abort()
       requestVersion.current += 1
     }
-  }, [projectId, sourceId])
+  }, [projectId, sourceId, submissionCoordinator])
 
   useEffect(() => {
     if (!sourceId || !job || !canPollAsrJob(job, pollFailed, submitting)) return
@@ -161,56 +157,73 @@ export function useAsrControls({
     onTranscriptReady()
   }, [job, onTranscriptReady])
 
-  async function start(): Promise<void> {
-    if (!source || !runtime?.available) return
+  async function submitJob(input: AsrSubmissionRequest): Promise<AsrJob | null> {
+    const ticket = submissionCoordinator.begin(input.scope, input.action)
+    if (!ticket) return null
     jobRequest.current?.abort()
     const controller = new AbortController()
-    const responseVersion = requestVersion.current + 1
-    requestVersion.current = responseVersion
+    requestVersion.current += 1
     jobRequest.current = controller
-    setSubmitting(true)
+    setSubmission(input.action)
     setPollFailed(false)
     setError(null)
-    try {
-      const incoming = await asrApi.start(
-        { projectId, sourceId: source.id, signal: controller.signal },
-        language,
-      )
-      if (!asrRequestMatches(requestVersion.current, responseVersion)) return
-      localStorage.setItem(asrJobStorageKey(projectId, source.id), incoming.id)
-      setJob(incoming)
-    } catch (reason) {
-      if (reason instanceof DOMException && reason.name === "AbortError") return
-      if (asrRequestMatches(requestVersion.current, responseVersion)) setError(errorMessage(reason))
-    } finally {
-      if (asrRequestMatches(requestVersion.current, responseVersion)) setSubmitting(false)
+    const settled = await submissionCoordinator.settle(
+      ticket,
+      Promise.resolve().then(() => input.operation(controller.signal)),
+      input.expectedJobId,
+    )
+    if (settled.released) setSubmission(null)
+    switch (settled.kind) {
+      case "accepted":
+        setJob(settled.job)
+        setLanguage(settled.job.language)
+        return settled.job
+      case "failed":
+        if (!(settled.reason instanceof DOMException && settled.reason.name === "AbortError")) {
+          setError((input.formatError ?? errorMessage)(settled.reason))
+        }
+        return null
+      case "stale":
+        return null
+      default: {
+        const exhaustive: never = settled
+        return exhaustive
+      }
     }
+  }
+
+  async function start(): Promise<void> {
+    if (!source || !runtime?.available) return
+    const scope = { projectId, sourceId: source.id }
+    const incoming = await submitJob({
+      action: "start",
+      scope,
+      operation: (signal) => asrApi.start({ ...scope, signal }, language),
+    })
+    if (incoming) localStorage.setItem(asrJobStorageKey(projectId, source.id), incoming.id)
   }
 
   async function cancel(): Promise<void> {
     if (!source || !job || !isActiveAsrJob(job)) return
-    jobRequest.current?.abort()
-    const controller = new AbortController()
-    const responseVersion = requestVersion.current + 1
-    requestVersion.current = responseVersion
-    jobRequest.current = controller
-    setSubmitting(true)
-    setPollFailed(false)
-    setError(null)
-    try {
-      const incoming = await asrApi.cancel({
-        projectId,
-        sourceId: source.id,
-        jobId: job.id,
-        signal: controller.signal,
-      })
-      if (asrRequestMatches(requestVersion.current, responseVersion)) setJob(incoming)
-    } catch (reason) {
-      if (reason instanceof DOMException && reason.name === "AbortError") return
-      if (asrRequestMatches(requestVersion.current, responseVersion)) setError(errorMessage(reason))
-    } finally {
-      if (asrRequestMatches(requestVersion.current, responseVersion)) setSubmitting(false)
-    }
+    const scope = { projectId, sourceId: source.id }
+    await submitJob({
+      action: "cancel",
+      scope,
+      expectedJobId: job.id,
+      operation: (signal) => asrApi.cancel({ ...scope, jobId: job.id, signal }),
+    })
+  }
+
+  async function resume(): Promise<void> {
+    if (!source || !job || !runtime?.available || !canResumeAsrJob(job)) return
+    const scope = { projectId, sourceId: source.id }
+    await submitJob({
+      action: "resume",
+      scope,
+      expectedJobId: job.id,
+      operation: (signal) => asrApi.resume({ ...scope, jobId: job.id, signal }),
+      formatError: resumeErrorMessage,
+    })
   }
 
   function retryPoll(): void {
@@ -225,12 +238,14 @@ export function useAsrControls({
     language,
     checking,
     submitting,
+    submission,
     pollFailed,
     error,
     setLanguage,
     refreshRuntime,
     start,
     cancel,
+    resume,
     retryPoll,
   }
 }

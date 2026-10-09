@@ -171,6 +171,15 @@
   gap: var(--s2);
 }
 
+.asr-controls__job > .asr-controls__resume {
+  display: grid;
+  gap: var(--s2);
+}
+
+.asr-controls__job .asr-controls__resume p {
+  color: var(--paper-2);
+}
+
 .transcript-cues {
   display: grid;
   gap: var(--s1);
@@ -256,6 +265,18 @@
     flex-direction: column;
   }
   .asr-controls__actions select {
+    min-block-size: 44px;
+  }
+
+  .asr-controls__job-actions .button,
+  .asr-controls__resume .button {
+    min-block-size: 44px;
+  }
+}
+
+@media (pointer: coarse) {
+  .asr-controls .button,
+  .asr-controls select {
     min-block-size: 44px;
   }
 }
