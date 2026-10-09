@@ -16,6 +16,16 @@ pub struct Cue {
     pub start_frame: String,
     pub end_frame: String,
     pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub words: Option<Vec<Word>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Word {
+    pub id: String,
+    pub start_frame: String,
+    pub end_frame: String,
+    pub text: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

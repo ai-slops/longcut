@@ -9,7 +9,7 @@ impl Store {
             .fetch_one(&self.pool)
             .await?;
         match version {
-            1..=3 => return Ok(()),
+            1..=4 => return Ok(()),
             0 => {}
             _ => {
                 return Err(AppError::Invalid(
@@ -41,7 +41,7 @@ impl Store {
         let version: i64 = sqlx::query_scalar("PRAGMA user_version")
             .fetch_one(&self.pool)
             .await?;
-        if matches!(version, 2 | 3) {
+        if matches!(version, 2..=4) {
             return Ok(());
         }
         if version != 1 {
@@ -74,10 +74,10 @@ impl Store {
         let version: i64 = sqlx::query_scalar("PRAGMA user_version")
             .fetch_one(&self.pool)
             .await?;
-        if version == 3 {
+        if version == 4 {
             return Ok(());
         }
-        if version != 2 {
+        if !matches!(version, 2 | 3) {
             return Err(AppError::Invalid("unsupported ASR schema migration".into()));
         }
         let projects: i64 = sqlx::query_scalar("SELECT count(*) FROM projects")
@@ -92,8 +92,13 @@ impl Store {
                 .await?;
         }
         let mut tx = self.pool.begin().await?;
-        sqlx::query("CREATE TABLE asr_jobs(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,source_id TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL,base_transcript_id TEXT,created_at TEXT NOT NULL); CREATE INDEX asr_job_source ON asr_jobs(project_id,source_id,created_at); CREATE UNIQUE INDEX asr_one_active_source ON asr_jobs(project_id,source_id) WHERE status IN ('queued','running'); PRAGMA user_version=3;")
-            .execute(&mut *tx).await?;
+        if version == 2 {
+            sqlx::query("CREATE TABLE asr_jobs(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,source_id TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL,base_transcript_id TEXT,created_at TEXT NOT NULL); CREATE INDEX asr_job_source ON asr_jobs(project_id,source_id,created_at); CREATE UNIQUE INDEX asr_one_active_source ON asr_jobs(project_id,source_id) WHERE status IN ('queued','running');")
+                .execute(&mut *tx).await?;
+        }
+        sqlx::query("ALTER TABLE transcript_cues ADD COLUMN words TEXT; PRAGMA user_version=4;")
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(())
     }

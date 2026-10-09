@@ -1,4 +1,4 @@
-use super::{Cue, ImportTranscript, Search, TranscriptOrigin, TranscriptPage, parse};
+use super::{Cue, ImportTranscript, Search, TranscriptOrigin, TranscriptPage, Word, parse};
 use crate::{
     error::{AppError, AppResult},
     model::Project,
@@ -56,7 +56,8 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         for (ordinal, cue) in cues.iter().enumerate() {
-            sqlx::query("INSERT INTO transcript_cues(id,transcript_id,ordinal,start_frame,end_frame,text) VALUES(?,?,?,?,?,?)").bind(&cue.id).bind(&transcript.id).bind(i64::try_from(ordinal).map_err(|_| AppError::Invalid("cue count overflow".into()))?).bind(&cue.start_frame).bind(&cue.end_frame).bind(&cue.text).execute(&mut *tx).await?;
+            let words = cue.words.as_ref().map(serde_json::to_string).transpose()?;
+            sqlx::query("INSERT INTO transcript_cues(id,transcript_id,ordinal,start_frame,end_frame,text,words) VALUES(?,?,?,?,?,?,?)").bind(&cue.id).bind(&transcript.id).bind(i64::try_from(ordinal).map_err(|_| AppError::Invalid("cue count overflow".into()))?).bind(&cue.start_frame).bind(&cue.end_frame).bind(&cue.text).bind(words).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         self.transcript(
@@ -132,11 +133,15 @@ impl Store {
             .into_iter()
             .take(100)
             .map(|row| {
+                let words: Option<String> = row.try_get("words")?;
                 Ok(Cue {
                     id: row.try_get("id")?,
                     start_frame: row.try_get("start_frame")?,
                     end_frame: row.try_get("end_frame")?,
                     text: row.try_get("text")?,
+                    words: words
+                        .map(|json| serde_json::from_str::<Vec<Word>>(&json))
+                        .transpose()?,
                 })
             })
             .collect::<AppResult<_>>()?;

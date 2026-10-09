@@ -69,6 +69,7 @@ pub(super) fn cues(text: &str, rate: u32, duration: u64) -> AppResult<Vec<Cue>> 
             start_frame: start_frame.to_string(),
             end_frame: end_frame.to_string(),
             text: body,
+            words: None,
         });
         if cues.len() > 20_000 {
             return Err(AppError::Invalid("transcript exceeds 20000 cues".into()));
@@ -126,6 +127,7 @@ mod tests {
         assert_eq!(srt[0].start_frame, "0");
         assert_eq!(srt[0].end_frame, "31");
         assert_eq!(srt[0].text, "첫 번째 실패\n원인 설명");
+        assert!(srt[0].words.is_none());
         let vtt = cues(
             "WEBVTT\n\n00:01.000 --> 00:02.000 align:start\n결과 확인",
             60,
