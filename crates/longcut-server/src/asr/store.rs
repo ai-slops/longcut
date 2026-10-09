@@ -7,7 +7,7 @@ use crate::{
     store::Store,
 };
 
-use super::{AsrJob, AsrJobStatus, AsrLanguage, AsrProgress, SourceSnapshot};
+use super::{AsrJob, AsrJobStatus, AsrLanguage, AsrProgress, ResumeSnapshot, SourceSnapshot};
 
 impl Store {
     pub(crate) async fn enqueue_asr(
@@ -16,6 +16,7 @@ impl Store {
         source_id: &str,
         language: AsrLanguage,
         model: &str,
+        resume_snapshot: &ResumeSnapshot,
     ) -> AppResult<(AsrJob, SourceSnapshot)> {
         let mut tx = self.pool.begin().await?;
         let state: String = sqlx::query_scalar("SELECT state FROM projects WHERE id=?")
@@ -65,11 +66,23 @@ impl Store {
             updated_at: now.clone(),
             transcript_id: None,
             error: None,
+            resume_eligible: false,
             base_transcript_id: base_transcript_id.clone(),
         };
-        sqlx::query("INSERT INTO asr_jobs(id,project_id,source_id,job,status,base_transcript_id,created_at) VALUES(?,?,?,?,?,?,?)")
+        if resume_snapshot.source_media_url != source.media_url
+            || resume_snapshot.duration_frames.to_string() != source.duration_frames
+            || resume_snapshot.frame_rate != project.frame_rate
+            || resume_snapshot.language != language
+            || resume_snapshot.model_path != model
+        {
+            return Err(AppError::Conflict(
+                "source or ASR runtime changed while the job was starting".into(),
+            ));
+        }
+        sqlx::query("INSERT INTO asr_jobs(id,project_id,source_id,job,status,base_transcript_id,created_at,resume_snapshot) VALUES(?,?,?,?,?,?,?,?)")
             .bind(&job.id).bind(project_id).bind(source_id).bind(serde_json::to_string(&job)?)
-            .bind(job.status.db_value()).bind(base_transcript_id).bind(&now).execute(&mut *tx).await?;
+            .bind(job.status.db_value()).bind(base_transcript_id).bind(&now)
+            .bind(serde_json::to_string(resume_snapshot)?).execute(&mut *tx).await?;
         tx.commit().await?;
         let duration_frames = source
             .duration_frames
@@ -92,11 +105,16 @@ impl Store {
         job_id: &str,
     ) -> AppResult<AsrJob> {
         self.get(project_id).await?;
-        let row = sqlx::query("SELECT job,base_transcript_id FROM asr_jobs WHERE id=? AND project_id=? AND source_id=?")
+        let row = sqlx::query("SELECT job,base_transcript_id,resume_snapshot FROM asr_jobs WHERE id=? AND project_id=? AND source_id=?")
             .bind(job_id).bind(project_id).bind(source_id).fetch_optional(&self.pool).await?
             .ok_or(AppError::NotFound)?;
         let mut job: AsrJob = serde_json::from_str(row.try_get("job")?)?;
         job.base_transcript_id = row.try_get("base_transcript_id")?;
+        job.resume_eligible = terminal_resume_eligible(
+            job.status,
+            row.try_get::<Option<String>, _>("resume_snapshot")?
+                .is_some(),
+        );
         Ok(job)
     }
 
@@ -109,13 +127,8 @@ impl Store {
         .await
     }
 
-    pub(crate) async fn progress_asr(&self, job_id: &str, completed: u32) -> AppResult<AsrJob> {
-        self.update_active_asr(job_id, |job| job.progress.completed_chunks = completed)
-            .await
-    }
-
     pub(crate) async fn fail_asr(&self, job_id: &str, message: &str) -> AppResult<()> {
-        let Some(row) = sqlx::query("SELECT job FROM asr_jobs WHERE id=?")
+        let Some(row) = sqlx::query("SELECT job,resume_snapshot FROM asr_jobs WHERE id=?")
             .bind(job_id)
             .fetch_optional(&self.pool)
             .await?
@@ -126,6 +139,9 @@ impl Store {
         if job.status.active() {
             job.status = AsrJobStatus::Failed;
             job.error = Some(message.into());
+            job.resume_eligible = row
+                .try_get::<Option<String>, _>("resume_snapshot")?
+                .is_some();
             job.updated_at = Utc::now().to_rfc3339();
             sqlx::query("UPDATE asr_jobs SET job=?,status='failed' WHERE id=? AND status IN ('queued','running')")
                 .bind(serde_json::to_string(&job)?).bind(job_id).execute(&self.pool).await?;
@@ -140,13 +156,16 @@ impl Store {
         job_id: &str,
     ) -> AppResult<AsrJob> {
         let mut tx = self.pool.begin().await?;
-        let row = sqlx::query("SELECT job,base_transcript_id FROM asr_jobs WHERE id=? AND project_id=? AND source_id=?")
+        let row = sqlx::query("SELECT job,base_transcript_id,resume_snapshot FROM asr_jobs WHERE id=? AND project_id=? AND source_id=?")
             .bind(job_id).bind(project_id).bind(source_id).fetch_optional(&mut *tx).await?
             .ok_or(AppError::NotFound)?;
         let mut job: AsrJob = serde_json::from_str(row.try_get("job")?)?;
         job.base_transcript_id = row.try_get("base_transcript_id")?;
         if job.status.active() {
             job.status = AsrJobStatus::Cancelled;
+            job.resume_eligible = row
+                .try_get::<Option<String>, _>("resume_snapshot")?
+                .is_some();
             job.updated_at = Utc::now().to_rfc3339();
             sqlx::query("UPDATE asr_jobs SET job=?,status='cancelled' WHERE id=? AND status IN ('queued','running')")
                 .bind(serde_json::to_string(&job)?).bind(job_id).execute(&mut *tx).await?;
@@ -186,4 +205,8 @@ impl Store {
         }
         Ok(job)
     }
+}
+
+const fn terminal_resume_eligible(status: AsrJobStatus, has_snapshot: bool) -> bool {
+    matches!(status, AsrJobStatus::Failed | AsrJobStatus::Cancelled) && has_snapshot
 }

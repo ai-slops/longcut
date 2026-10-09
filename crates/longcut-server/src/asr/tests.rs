@@ -4,9 +4,27 @@ use crate::{
     transcript::{Cue, ImportTranscript, Search, Word},
 };
 
-use super::{AsrLanguage, AsrTranscriptMetadata};
+use super::{AsrLanguage, AsrTranscriptMetadata, ResumeSnapshot};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn resume_snapshot() -> ResumeSnapshot {
+    ResumeSnapshot {
+        source_sha256: "source-hash".into(),
+        model_sha256: "model-hash".into(),
+        cli_sha256: "cli-hash".into(),
+        source_media_url: "/api/v1/media/source.mp4".into(),
+        model_path: "model.gguf".into(),
+        cli_path: "whisper-cli".into(),
+        duration_frames: 300,
+        frame_rate: 30,
+        language: AsrLanguage::Ko,
+        chunk_seconds: 600,
+        overlap_seconds: 2,
+        conversion_policy_version: 1,
+        argument_policy_version: 1,
+    }
+}
 
 #[test]
 fn legacy_asr_metadata_deserializes_with_honest_defaults() -> TestResult {
@@ -70,11 +88,23 @@ async fn one_active_job_is_allowed_per_source() -> TestResult {
     let root = tempfile::tempdir()?;
     let (store, project_id) = fixture(&root.path().join("store.sqlite3")).await?;
     store
-        .enqueue_asr(&project_id, "source", AsrLanguage::Ko, "model.gguf")
+        .enqueue_asr(
+            &project_id,
+            "source",
+            AsrLanguage::Ko,
+            "model.gguf",
+            &resume_snapshot(),
+        )
         .await?;
     // When
     let duplicate = store
-        .enqueue_asr(&project_id, "source", AsrLanguage::Ko, "model.gguf")
+        .enqueue_asr(
+            &project_id,
+            "source",
+            AsrLanguage::Ko,
+            "model.gguf",
+            &resume_snapshot(),
+        )
         .await;
     // Then
     assert!(duplicate.is_err());
@@ -88,7 +118,13 @@ async fn interrupted_job_is_failed_when_store_reopens() -> TestResult {
     let path = root.path().join("store.sqlite3");
     let (store, project_id) = fixture(&path).await?;
     let (job, _) = store
-        .enqueue_asr(&project_id, "source", AsrLanguage::Ko, "model.gguf")
+        .enqueue_asr(
+            &project_id,
+            "source",
+            AsrLanguage::Ko,
+            "model.gguf",
+            &resume_snapshot(),
+        )
         .await?;
     drop(store);
     // When
@@ -111,7 +147,13 @@ async fn publication_rejects_a_newer_manual_transcript_without_partial_write() -
     let root = tempfile::tempdir()?;
     let (store, project_id) = fixture(&root.path().join("store.sqlite3")).await?;
     let (job, _) = store
-        .enqueue_asr(&project_id, "source", AsrLanguage::Ko, "model.gguf")
+        .enqueue_asr(
+            &project_id,
+            "source",
+            AsrLanguage::Ko,
+            "model.gguf",
+            &resume_snapshot(),
+        )
         .await?;
     let job = store.start_asr(&job.id, 1).await?;
     let manual = store
@@ -165,7 +207,13 @@ async fn asr_words_persist_through_query_and_store_reopen() -> TestResult {
     let path = root.path().join("store.sqlite3");
     let (store, project_id) = fixture(&path).await?;
     let (job, _) = store
-        .enqueue_asr(&project_id, "source", AsrLanguage::Ko, "model.gguf")
+        .enqueue_asr(
+            &project_id,
+            "source",
+            AsrLanguage::Ko,
+            "model.gguf",
+            &resume_snapshot(),
+        )
         .await?;
     let job = store.start_asr(&job.id, 1).await?;
     let word_id = uuid::Uuid::new_v4().to_string();
