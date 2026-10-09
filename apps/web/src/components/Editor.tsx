@@ -4,6 +4,7 @@ import type { Command, Project, Source } from "../domain"
 import { programDuration, sceneDuration, sceneProgramStart } from "../timeline"
 import { useEditorShortcuts } from "../useEditorShortcuts"
 import { AgentPanel } from "./AgentPanel"
+import { AsrControls } from "./AsrControls"
 import { DeliverablesPanel } from "./DeliverablesPanel"
 import { type EditorTab, EditorTabs } from "./EditorTabs"
 import { Inspector } from "./Inspector"
@@ -54,6 +55,7 @@ export function Editor({
   const programFrame = Math.max(0, Math.min(programPosition, Math.max(0, duration - 1)))
   const [inFrame, setInFrame] = useState(0)
   const [outFrame, setOutFrame] = useState(project.frame_rate * 5)
+  const [transcriptRefreshKey, setTranscriptRefreshKey] = useState(0)
   const source = project.sources.find((item) => item.id === sourceId) ?? null
   const scene = project.scenes.find((item) => item.id === sceneId) ?? null
 
@@ -192,7 +194,13 @@ export function Editor({
                   onAdd={() => void addScene()}
                   disabled={!source || busy}
                 />
+                <AsrControls
+                  projectId={project.id}
+                  source={source}
+                  onTranscriptReady={() => setTranscriptRefreshKey((value) => value + 1)}
+                />
                 <TranscriptPanel
+                  key={`${source?.id ?? "none"}:${transcriptRefreshKey}`}
                   projectId={project.id}
                   source={source}
                   onSelectCue={(selection) => {

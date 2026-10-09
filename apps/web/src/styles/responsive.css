@@ -132,6 +132,7 @@
 }
 .monitor-seek {
   inline-size: 100%;
+  margin: 0;
   accent-color: var(--lime-1);
 }
 .monitor__empty {
@@ -302,6 +303,7 @@
   inset: 0 0 auto;
   inline-size: 100%;
   block-size: 26px;
+  margin: 0;
   opacity: 0;
   cursor: ew-resize;
 }
