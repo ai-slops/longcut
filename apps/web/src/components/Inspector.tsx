@@ -3,6 +3,7 @@ import type { FormEvent } from "react"
 import type { Command, Project, Scene } from "../domain"
 import { useDraft } from "../useDraft"
 import { CameraEditor } from "./CameraEditor"
+import { MomentVersionLink } from "./MomentVersionLink"
 import { SceneComments } from "./SceneComments"
 import { Badge, Button, Field, Panel, TextArea } from "./Ui"
 
@@ -85,6 +86,19 @@ export function Inspector({
           <Button type="submit" busy={busy} disabled={scene.locked}>
             Save scene
           </Button>
+          {scene.moment ? (
+            <div className="scene-moment-link">
+              <Badge tone="violet">Moment v{scene.moment.version}</Badge>
+              <p className="scene-moment-link__copy">
+                Frozen provenance; later Moment edits never rewrite this Scene.
+              </p>
+              <MomentVersionLink
+                projectId={project.id}
+                momentId={scene.moment.moment_id}
+                version={scene.moment.version}
+              />
+            </div>
+          ) : null}
           <div className="geometry-grid">
             <Field
               label="Trim in frame"
