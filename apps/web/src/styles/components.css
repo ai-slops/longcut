@@ -81,6 +81,7 @@
 }
 .field small {
   color: var(--paper-3);
+  font-size: var(--type-small);
   font-weight: 400;
 }
 .check-field {
@@ -234,7 +235,7 @@
 .home__brand small {
   margin-inline-start: auto;
   color: var(--paper-3);
-  font-size: 10px;
+  font-size: 12px;
 }
 .home__hero {
   min-block-size: min(620px, 68dvh);
@@ -317,7 +318,7 @@
 .recent__heading > span {
   color: var(--paper-3);
   font:
-    11px "IBM Plex Mono",
+    12px "IBM Plex Mono",
     monospace;
 }
 .empty-list {
@@ -377,7 +378,7 @@
 .project-card small {
   color: var(--paper-3);
   font:
-    10px "IBM Plex Mono",
+    12px "IBM Plex Mono",
     monospace;
 }
 .home-error {

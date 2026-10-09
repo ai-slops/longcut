@@ -167,7 +167,7 @@
   z-index: 1;
 }
 .monitor__empty p {
-  font-size: 11px;
+  font-size: 12px;
 }
 .aperture {
   inline-size: 40px;
@@ -371,7 +371,7 @@
   place-items: center;
   border: 1px dashed var(--line-2);
   color: var(--paper-3);
-  font-size: 10px;
+  font-size: 12px;
 }
 .playhead,
 .skimmer {
@@ -405,7 +405,7 @@
 .timeline__editbar > span {
   margin-inline-end: auto;
   color: var(--paper-3);
-  font-size: 10px;
+  font-size: 12px;
 }
 .inspector {
   min-block-size: 0;
@@ -504,7 +504,7 @@ aside.inspector > .panel {
   gap: var(--s2);
   margin-block-start: var(--s2);
   color: var(--paper-3);
-  font-size: 10px;
+  font-size: 12px;
 }
 .comment-list button,
 .row-actions button {
@@ -530,11 +530,11 @@ aside.inspector > .panel {
 .story-list code {
   color: var(--paper-3);
   font:
-    10px "IBM Plex Mono",
+    12px "IBM Plex Mono",
     monospace;
 }
 .story-list p {
-  font-size: 11px;
+  font-size: 12px;
 }
 .row-actions {
   display: flex;
@@ -556,7 +556,7 @@ aside.inspector > .panel {
 }
 .proposal-list article header p {
   margin-block-start: var(--s1);
-  font-size: 11px;
+  font-size: 12px;
 }
 .proposal-list ul {
   margin: var(--s3) 0 0;
@@ -569,7 +569,7 @@ aside.inspector > .panel {
   text-transform: uppercase;
 }
 .proposal-list article li p {
-  font-size: 11px;
+  font-size: 12px;
 }
 .review-list footer {
   flex-wrap: wrap;
@@ -648,7 +648,7 @@ aside.inspector > .panel {
 .error-copy {
   margin-block-start: var(--s2);
   color: var(--error);
-  font-size: 11px;
+  font-size: 12px;
 }
 @media (max-width: 1080px) {
   .edit-workspace {
@@ -658,8 +658,12 @@ aside.inspector > .panel {
   .edit-center {
     min-block-size: 720px;
   }
+  .monitor-grid {
+    grid-template-columns: 1fr;
+  }
   .inspector {
     grid-column: 1 / -1;
+    min-block-size: 240px;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     border-inline-start: 0;
@@ -682,13 +686,20 @@ aside.inspector > .panel {
     z-index: 10;
     grid-template-columns: minmax(0, 1fr) auto;
     block-size: auto;
-    grid-template-rows: 52px 40px;
+    grid-template-rows: 52px 44px;
     min-block-size: 52px;
   }
   .tabs {
     grid-column: 1 / -1;
-    block-size: 40px;
+    block-size: 44px;
+    margin-inline: calc(var(--s3) * -1);
     order: 3;
+  }
+
+  .tabs button {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+    padding-inline: var(--s2);
   }
   .history-actions {
     grid-column: 2;
@@ -722,6 +733,7 @@ aside.inspector > .panel {
     min-block-size: 220px;
   }
   .inspector {
+    min-block-size: 0;
     display: block;
     overflow: visible;
   }
@@ -793,6 +805,18 @@ aside.inspector > .panel {
     grid-column: 2;
   }
   .button {
+    min-block-size: 44px;
+  }
+  .field input,
+  .field select {
+    min-block-size: 44px;
+  }
+}
+
+@media (pointer: coarse) {
+  .button,
+  .field input,
+  .field select {
     min-block-size: 44px;
   }
 }

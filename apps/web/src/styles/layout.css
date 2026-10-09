@@ -54,7 +54,7 @@
 .topbar__project small {
   color: var(--paper-3);
   font:
-    11px / 1.2 "IBM Plex Mono",
+    12px / 1.2 "IBM Plex Mono",
     monospace;
 }
 .tabs {
