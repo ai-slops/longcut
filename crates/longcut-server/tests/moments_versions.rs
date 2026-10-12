@@ -24,7 +24,7 @@ fn create() -> Command {
 }
 
 #[tokio::test]
-async fn new_database_uses_schema_version_eight() {
+async fn new_database_uses_schema_version_nine() {
     // Given
     let fixture = fixture().await;
     let pool = sqlx::SqlitePool::connect_with(
@@ -39,7 +39,7 @@ async fn new_database_uses_schema_version_eight() {
         .await
         .expect("schema version");
     // Then
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
 }
 
 #[tokio::test]
@@ -81,12 +81,19 @@ async fn legacy_project_and_scene_json_default_new_collections_and_links() {
         .as_object_mut()
         .expect("project object")
         .remove("moments");
+    value
+        .as_object_mut()
+        .expect("project object")
+        .remove("story");
     value["scenes"] = serde_json::json!([{"id":"legacy","title":"Legacy","purpose":"","source_id":"source","in_frame":"0","out_frame":"10","camera":null,"caption":"","locked":false,"manual":true}]);
     // When
     let legacy: Project = serde_json::from_value(value).expect("read legacy project");
     // Then
     assert!(legacy.moments.is_empty());
+    assert_eq!(legacy.story.version, "0");
+    assert!(legacy.story.chapters.is_empty());
     assert!(legacy.scenes[0].moment.is_none());
+    assert!(legacy.scenes[0].beat_id.is_none());
 }
 
 #[tokio::test]

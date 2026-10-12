@@ -3,7 +3,7 @@ use longcut_server::{
         AiOperation, AiProposal, AiRequest, AiScope, build_prompt, proposal_schema,
         validate_proposal,
     },
-    model::{Camera, MediaStatus, Project, Scene, Source, SourceRole},
+    model::{Camera, MediaStatus, Project, Scene, Source, SourceRole, Story},
 };
 
 #[test]
@@ -136,6 +136,7 @@ fn scene_project() -> Project {
         brief: String::new(),
         source_sessions: vec![],
         moments: vec![],
+        story: Story::default(),
         sources: vec![
             source("selected", SourceRole::Primary),
             source("existing-camera", SourceRole::Primary),
@@ -162,6 +163,7 @@ fn scene_project() -> Project {
             locked: false,
             manual: false,
             moment: None,
+            beat_id: None,
         }],
         feedback: vec![],
         change_sets: vec![],

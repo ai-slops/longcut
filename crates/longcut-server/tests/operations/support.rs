@@ -94,6 +94,7 @@ pub(super) fn fixture_project() -> Project {
         brief: String::new(),
         source_sessions: vec![],
         moments: vec![],
+        story: Story::default(),
         sources: vec![Source {
             id: "source".into(),
             name: "source.mp4".into(),
@@ -121,6 +122,7 @@ pub(super) fn fixture_project() -> Project {
             locked: false,
             manual: false,
             moment: None,
+            beat_id: None,
         }],
         feedback: vec![],
         change_sets: vec![],
