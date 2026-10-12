@@ -14,7 +14,7 @@ impl Store {
             .fetch_one(&self.pool)
             .await?;
         match version {
-            1..=8 => return Ok(()),
+            1..=9 => return Ok(()),
             0 => {}
             _ => {
                 return Err(AppError::Invalid(
@@ -46,7 +46,7 @@ impl Store {
         let version: i64 = sqlx::query_scalar("PRAGMA user_version")
             .fetch_one(&self.pool)
             .await?;
-        if matches!(version, 2..=8) {
+        if matches!(version, 2..=9) {
             return Ok(());
         }
         if version != 1 {
@@ -79,7 +79,7 @@ impl Store {
         let version: i64 = sqlx::query_scalar("PRAGMA user_version")
             .fetch_one(&self.pool)
             .await?;
-        if matches!(version, 6..=8) {
+        if matches!(version, 6..=9) {
             return Ok(());
         }
         if !matches!(version, 2..=5) {
@@ -137,7 +137,7 @@ impl Store {
             .fetch_one(&self.pool)
             .await?;
         match version {
-            7 | 8 => return Ok(()),
+            7..=9 => return Ok(()),
             6 => {}
             _ => {
                 return Err(AppError::Invalid(

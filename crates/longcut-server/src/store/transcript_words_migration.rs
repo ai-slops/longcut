@@ -25,7 +25,7 @@ impl Store {
             .fetch_one(&self.pool)
             .await?;
         match version {
-            8 => return Ok(()),
+            8 | 9 => return Ok(()),
             7 => {}
             _ => {
                 return Err(AppError::Invalid(
