@@ -29,6 +29,7 @@ pub(super) fn insert(project: &mut Project, operation: &Operation) -> AppResult<
         locked: false,
         manual: false,
         moment: None,
+        beat_id: None,
     });
     Ok(())
 }

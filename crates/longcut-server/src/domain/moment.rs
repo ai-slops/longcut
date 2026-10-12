@@ -180,6 +180,7 @@ pub(super) fn insert_scene(
             moment_id: moment.id.clone(),
             version: moment.version.clone(),
         }),
+        beat_id: None,
     });
     Ok(())
 }
