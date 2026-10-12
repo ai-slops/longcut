@@ -3,7 +3,7 @@ use crate::{
     model::{Command, MomentEvidenceSelection, Project},
 };
 
-use super::{ApplyContext, moment, review, scene};
+use super::{ApplyContext, moment, review, scene, story};
 
 pub(super) fn apply_edit(
     project: &mut Project,
@@ -158,6 +158,7 @@ pub(super) fn apply_edit(
                 title,
             )?;
         }
+        Command::Story { action } => story::apply(project, action, context)?,
         Command::CreateFeedback {
             scene_id,
             start_frame,

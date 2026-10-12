@@ -4,6 +4,7 @@ mod moment_validation;
 mod review;
 mod scene;
 mod scene_proposal;
+mod story;
 
 use crate::{
     error::{AppError, AppResult},
@@ -43,6 +44,17 @@ pub(crate) fn preflight_moment_update(
     expected_version: &str,
 ) -> AppResult<()> {
     moment::preflight_update(project, moment_id, expected_version)
+}
+
+pub(crate) fn preflight_story_command(project: &Project, command: &StoryCommand) -> AppResult<()> {
+    story::preflight(project, command)
+}
+
+pub(crate) fn new_story_moment_refs<'a>(
+    project: &'a Project,
+    command: &'a StoryCommand,
+) -> AppResult<Vec<&'a MomentVersionRef>> {
+    story::new_moment_refs(project, command)
 }
 
 pub fn apply_with_context(
