@@ -136,7 +136,7 @@ pub(super) fn capture_precondition(
         }
         OperationType::DeleteScene => OperationPrecondition::DeleteScene {
             operation_id: operation.id.clone(),
-            scene: scene::get(project, &operation.scene_id)?.clone(),
+            scene: Box::new(scene::get(project, &operation.scene_id)?.clone()),
         },
     })
 }
@@ -184,7 +184,7 @@ pub(super) fn validate_precondition(
         }
         OperationPrecondition::DeleteScene {
             scene: expected, ..
-        } => find_target(project, &expected.id)? == expected,
+        } => find_target(project, &expected.id)? == expected.as_ref(),
     };
     if !matches {
         return Err(AppError::Conflict(

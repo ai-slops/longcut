@@ -65,7 +65,7 @@ pub enum OperationPrecondition {
     },
     DeleteScene {
         operation_id: String,
-        scene: Scene,
+        scene: Box<Scene>,
     },
 }
 
