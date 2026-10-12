@@ -6,6 +6,16 @@ contract revision**, recorded in the explicitly condensed
 
 ## Overall finding
 
+### Manual Chapter/Beat hierarchy checkpoint
+
+The Story workspace now has versioned Chapters and Beats, advisory frame budgets,
+pinned reviewed-Moment evidence and explicit Scene assignment. Manual outline order
+does not silently change output Scene order. Immutable Story references survive
+undo/redo and freeze into render lineage. Schema v9 and real API/browser/render
+acceptance are documented in [Story validation](story-validation.md).
+This is the manual story/scene hierarchy foundation, not automatic semantic analysis,
+an outline compiler, or completion of the full alpha release gates.
+
 ### Curated source Moments checkpoint
 
 Manual Moments now persist source ranges, optional immutable transcript evidence,
