@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    Camera, MomentEvidenceSelection, MomentNarrativeRole, MomentReviewStatus, Operation, Pin,
-    Project, RenderKind, SourceRole,
+    Camera, MomentEvidenceSelection, MomentNarrativeRole, MomentReviewStatus, MomentVersionRef,
+    Operation, Pin, Project, RenderKind, SourceRole,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -99,6 +99,9 @@ pub enum Command {
         expected_moment_version: String,
         title: String,
     },
+    Story {
+        action: StoryCommand,
+    },
     CreateFeedback {
         scene_id: String,
         start_frame: String,
@@ -126,6 +129,114 @@ pub enum Command {
     },
     Undo,
     Redo,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum StoryCommand {
+    CreateChapter {
+        expected_story_version: String,
+        title: String,
+        purpose: String,
+        before_chapter_id: Option<String>,
+    },
+    UpdateChapter {
+        expected_story_version: String,
+        chapter_id: String,
+        title: String,
+        purpose: String,
+    },
+    MoveChapter {
+        expected_story_version: String,
+        chapter_id: String,
+        before_chapter_id: Option<String>,
+    },
+    DeleteChapter {
+        expected_story_version: String,
+        chapter_id: String,
+    },
+    CreateBeat {
+        expected_story_version: String,
+        chapter_id: String,
+        title: String,
+        purpose: String,
+        target_frames: Option<String>,
+        before_beat_id: Option<String>,
+    },
+    UpdateBeat {
+        expected_story_version: String,
+        beat_id: String,
+        title: String,
+        purpose: String,
+        target_frames: Option<String>,
+    },
+    MoveBeat {
+        expected_story_version: String,
+        beat_id: String,
+        chapter_id: String,
+        before_beat_id: Option<String>,
+    },
+    DeleteBeat {
+        expected_story_version: String,
+        beat_id: String,
+    },
+    SetBeatMomentRefs {
+        expected_story_version: String,
+        beat_id: String,
+        moment_refs: Vec<MomentVersionRef>,
+    },
+    SetSceneBeat {
+        expected_story_version: String,
+        scene_id: String,
+        beat_id: Option<String>,
+    },
+}
+
+impl StoryCommand {
+    pub const fn expected_story_version(&self) -> &String {
+        match self {
+            Self::CreateChapter {
+                expected_story_version,
+                ..
+            }
+            | Self::UpdateChapter {
+                expected_story_version,
+                ..
+            }
+            | Self::MoveChapter {
+                expected_story_version,
+                ..
+            }
+            | Self::DeleteChapter {
+                expected_story_version,
+                ..
+            }
+            | Self::CreateBeat {
+                expected_story_version,
+                ..
+            }
+            | Self::UpdateBeat {
+                expected_story_version,
+                ..
+            }
+            | Self::MoveBeat {
+                expected_story_version,
+                ..
+            }
+            | Self::DeleteBeat {
+                expected_story_version,
+                ..
+            }
+            | Self::SetBeatMomentRefs {
+                expected_story_version,
+                ..
+            }
+            | Self::SetSceneBeat {
+                expected_story_version,
+                ..
+            } => expected_story_version,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]

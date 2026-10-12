@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ChangeSet, Feedback, Moment, MomentVersionRef, SourceSessionSummary};
+use super::{ChangeSet, Feedback, Moment, MomentVersionRef, SourceSessionSummary, Story};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Project {
@@ -15,6 +15,8 @@ pub struct Project {
     pub source_sessions: Vec<SourceSessionSummary>,
     #[serde(default)]
     pub moments: Vec<Moment>,
+    #[serde(default)]
+    pub story: Story,
     pub scenes: Vec<Scene>,
     pub feedback: Vec<Feedback>,
     pub change_sets: Vec<ChangeSet>,
@@ -79,6 +81,8 @@ pub struct Scene {
     pub manual: bool,
     #[serde(default)]
     pub moment: Option<MomentVersionRef>,
+    #[serde(default)]
+    pub beat_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
