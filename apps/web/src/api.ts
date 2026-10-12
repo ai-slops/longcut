@@ -21,6 +21,8 @@ import {
   ProjectsSchema,
   type Render,
   RenderSchema,
+  type Story,
+  StoryVersionResponseSchema,
 } from "./domain"
 import {
   type MomentVersionFetch,
@@ -33,6 +35,10 @@ import {
   SessionImportJobsSchema,
 } from "./session-domain"
 import type { PackageFile } from "./session-files"
+import {
+  type StoryVersionIdentity,
+  storyVersionResponseMatchesIdentity,
+} from "./story-version-request"
 import { type SyncDiagnostics, SyncDiagnosticsSchema } from "./sync-diagnostics-domain"
 import {
   OptionalTranscriptPageSchema,
@@ -99,6 +105,19 @@ export const api = {
       !versionResponseMatchesIdentity(momentVersionIdentity(projectId, momentId, version), response)
     ) {
       throw new ApiError("response_identity", "Moment version response identity mismatch.", 502)
+    }
+    return response.snapshot
+  },
+  getStoryVersion: async (identity: StoryVersionIdentity, signal: AbortSignal): Promise<Story> => {
+    const response = await request(
+      () =>
+        client
+          .get(`projects/${identity.projectId}/story/versions/${identity.version}`, { signal })
+          .json(),
+      StoryVersionResponseSchema,
+    )
+    if (!storyVersionResponseMatchesIdentity(identity, response)) {
+      throw new ApiError("response_identity", "Story version response identity mismatch.", 502)
     }
     return response.snapshot
   },
