@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { MomentSchema, SceneMomentSchema } from "./moment-domain.ts"
 import { SourceSessionSummarySchema } from "./session-domain.ts"
+import { StorySchema } from "./story-domain.ts"
 
 export type { Command } from "./command.ts"
 export {
@@ -14,6 +15,17 @@ export {
   NarrativeRoleSchema,
   SceneMomentSchema,
 } from "./moment-domain.ts"
+export {
+  type Beat,
+  BeatSchema,
+  type Chapter,
+  ChapterSchema,
+  type Story,
+  type StoryMomentRef,
+  StoryMomentRefSchema,
+  StorySchema,
+  StoryVersionResponseSchema,
+} from "./story-domain.ts"
 
 const Id = z.string().min(1)
 const Frame = z.string().regex(/^\d+$/)
@@ -57,6 +69,7 @@ export const SceneSchema = z.object({
   locked: z.boolean(),
   manual: z.boolean(),
   moment: SceneMomentSchema.nullable().default(null),
+  beat_id: Id.nullable().default(null),
 })
 
 export const FeedbackSchema = z.object({
@@ -163,6 +176,7 @@ export const ProjectSchema = z.object({
   sources: z.array(SourceSchema),
   source_sessions: z.array(SourceSessionSummarySchema).default([]),
   scenes: z.array(SceneSchema),
+  story: StorySchema,
   moments: z.array(MomentSchema).default([]),
   feedback: z.array(FeedbackSchema),
   change_sets: z.array(ChangeSetSchema),

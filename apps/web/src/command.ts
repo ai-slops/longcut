@@ -1,6 +1,61 @@
 import type { Camera, Moment, MomentEvidenceSelection, Operation, Source } from "./domain.ts"
+import type { StoryMomentRef } from "./story-domain.ts"
+
+export type StoryActionInput =
+  | {
+      readonly type: "create_chapter"
+      readonly title: string
+      readonly purpose: string
+      readonly before_chapter_id: string | null
+    }
+  | {
+      readonly type: "update_chapter"
+      readonly chapter_id: string
+      readonly title: string
+      readonly purpose: string
+    }
+  | {
+      readonly type: "move_chapter"
+      readonly chapter_id: string
+      readonly before_chapter_id: string | null
+    }
+  | { readonly type: "delete_chapter"; readonly chapter_id: string }
+  | {
+      readonly type: "create_beat"
+      readonly chapter_id: string
+      readonly title: string
+      readonly purpose: string
+      readonly target_frames: string | null
+      readonly before_beat_id: string | null
+    }
+  | {
+      readonly type: "update_beat"
+      readonly beat_id: string
+      readonly title: string
+      readonly purpose: string
+      readonly target_frames: string | null
+    }
+  | {
+      readonly type: "move_beat"
+      readonly beat_id: string
+      readonly chapter_id: string
+      readonly before_beat_id: string | null
+    }
+  | { readonly type: "delete_beat"; readonly beat_id: string }
+  | {
+      readonly type: "set_beat_moment_refs"
+      readonly beat_id: string
+      readonly moment_refs: readonly StoryMomentRef[]
+    }
+  | { readonly type: "set_scene_beat"; readonly scene_id: string; readonly beat_id: string | null }
+
+export type StoryCommand = {
+  readonly type: "story"
+  readonly action: StoryActionInput & { readonly expected_story_version: string }
+}
 
 export type Command =
+  | StoryCommand
   | { readonly type: "set_brief"; readonly brief: string }
   | { readonly type: "rename_project"; readonly title: string }
   | { readonly type: "set_source_role"; readonly source_id: string; readonly role: Source["role"] }
