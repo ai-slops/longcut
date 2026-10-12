@@ -3,6 +3,12 @@ use crate::{
     model::*,
 };
 
+mod support;
+use support::validate_camera;
+pub(super) use support::{
+    editable, frame, get, scene_len, scene_mut, source, source_mut, validate_range,
+};
+
 pub(super) fn insert(
     project: &mut Project,
     source_id: String,
@@ -23,6 +29,7 @@ pub(super) fn insert(
         locked: false,
         manual: true,
         moment: None,
+        beat_id: None,
     });
     Ok(())
 }
@@ -183,84 +190,4 @@ pub(super) fn set_camera(
     target.camera = camera;
     target.manual |= manual;
     Ok(())
-}
-
-pub(super) fn validate_range(
-    project: &Project,
-    source_id: &str,
-    start: &str,
-    end: &str,
-) -> AppResult<()> {
-    let start = frame(start)?;
-    let end = frame(end)?;
-    let source = source(project, source_id)?;
-    if source.width == 0 || source.height == 0 {
-        return Err(AppError::Invalid("visual source must contain video".into()));
-    }
-    let duration = frame(&source.duration_frames)?;
-    if start >= end || end > duration {
-        return Err(AppError::Invalid(
-            "range must be non-empty and inside source".into(),
-        ));
-    }
-    Ok(())
-}
-
-pub(super) fn frame(value: &str) -> AppResult<u64> {
-    value
-        .parse()
-        .map_err(|_| AppError::Invalid("frame must be a decimal string".into()))
-}
-pub(super) fn scene_len(value: &Scene) -> AppResult<u64> {
-    frame(&value.out_frame)?
-        .checked_sub(frame(&value.in_frame)?)
-        .ok_or_else(|| AppError::Invalid("invalid persisted scene range".into()))
-}
-
-fn validate_camera(project: &Project, camera: &Camera, scene_length: u64) -> AppResult<()> {
-    let start = frame(&camera.in_frame)?;
-    let end = start
-        .checked_add(scene_length)
-        .ok_or_else(|| AppError::Invalid("camera frame overflow".into()))?;
-    validate_range(
-        project,
-        &camera.source_id,
-        &camera.in_frame,
-        &end.to_string(),
-    )
-}
-pub(super) fn source<'a>(project: &'a Project, id: &str) -> AppResult<&'a Source> {
-    project
-        .sources
-        .iter()
-        .find(|item| item.id == id)
-        .ok_or(AppError::NotFound)
-}
-pub(super) fn source_mut<'a>(project: &'a mut Project, id: &str) -> AppResult<&'a mut Source> {
-    project
-        .sources
-        .iter_mut()
-        .find(|item| item.id == id)
-        .ok_or(AppError::NotFound)
-}
-pub(super) fn get<'a>(project: &'a Project, id: &str) -> AppResult<&'a Scene> {
-    project
-        .scenes
-        .iter()
-        .find(|item| item.id == id)
-        .ok_or(AppError::NotFound)
-}
-pub(super) fn scene_mut<'a>(project: &'a mut Project, id: &str) -> AppResult<&'a mut Scene> {
-    project
-        .scenes
-        .iter_mut()
-        .find(|item| item.id == id)
-        .ok_or(AppError::NotFound)
-}
-pub(super) fn editable<'a>(project: &'a mut Project, id: &str) -> AppResult<&'a mut Scene> {
-    let target = scene_mut(project, id)?;
-    if target.locked {
-        return Err(AppError::Locked(id.into()));
-    }
-    Ok(target)
 }
