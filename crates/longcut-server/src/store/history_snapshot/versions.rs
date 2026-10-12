@@ -16,6 +16,7 @@ pub(super) async fn hydrate(
     project_id: &str,
     snapshot: ProjectSnapshot,
 ) -> AppResult<Project> {
+    let story = crate::store::stories::hydrate(tx, project_id, snapshot.story_version()).await?;
     let mut moments = Vec::with_capacity(snapshot.refs().len());
     for reference in snapshot.refs() {
         let value: String = sqlx::query_scalar(LOOKUP_SQL)
@@ -33,7 +34,7 @@ pub(super) async fn hydrate(
         }
         moments.push(moment);
     }
-    let project = snapshot.into_project(moments);
+    let project = snapshot.into_project(moments, story);
     if project.id != project_id {
         return Err(AppError::NotFound);
     }
@@ -52,6 +53,7 @@ pub(super) async fn persist_missing(
                 "history snapshot belongs to a different project"
             )));
         }
+        crate::store::stories::persist(tx, project_id, &project.story).await?;
         for moment in &project.moments {
             let key = (moment.id.as_str(), moment.version.as_str());
             if let Some(existing) = pending.insert(key, moment)

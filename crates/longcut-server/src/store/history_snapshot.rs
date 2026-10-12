@@ -38,6 +38,7 @@ impl HistoryOperation {
             | Command::ArchiveMoment { .. }
             | Command::RestoreMoment { .. }
             | Command::InsertSceneFromMoment { .. }
+            | Command::Story { .. }
             | Command::CreateFeedback { .. }
             | Command::ResolveFeedback { .. }
             | Command::CreateChangeSet { .. }

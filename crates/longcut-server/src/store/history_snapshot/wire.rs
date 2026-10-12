@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{
     ChangeSet, Feedback, Moment, MomentVersionRef, Project, Render, Scene, Source,
-    SourceSessionSummary,
+    SourceSessionSummary, Story,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -40,10 +40,13 @@ pub(super) struct ProjectSnapshot {
     version: SnapshotVersion,
     project_without_moments: ProjectWithoutMoments,
     moment_refs: Vec<MomentVersionRef>,
+    #[serde(default = "default_story_version")]
+    story_version: String,
 }
 
 impl ProjectSnapshot {
     pub(super) fn from_project(project: Project) -> Self {
+        let story_version = project.story.version.clone();
         let moment_refs = project
             .moments
             .iter()
@@ -56,6 +59,7 @@ impl ProjectSnapshot {
             version: SnapshotVersion::V1,
             project_without_moments: ProjectWithoutMoments::from_project(project),
             moment_refs,
+            story_version,
         }
     }
 
@@ -63,8 +67,12 @@ impl ProjectSnapshot {
         &self.moment_refs
     }
 
-    pub(super) fn into_project(self, moments: Vec<Moment>) -> Project {
-        self.project_without_moments.into_project(moments)
+    pub(super) fn story_version(&self) -> &str {
+        &self.story_version
+    }
+
+    pub(super) fn into_project(self, moments: Vec<Moment>, story: Story) -> Project {
+        self.project_without_moments.into_project(moments, story)
     }
 }
 
@@ -107,7 +115,7 @@ impl ProjectWithoutMoments {
         }
     }
 
-    fn into_project(self, moments: Vec<Moment>) -> Project {
+    fn into_project(self, moments: Vec<Moment>, story: Story) -> Project {
         Project {
             id: self.id,
             title: self.title,
@@ -118,6 +126,7 @@ impl ProjectWithoutMoments {
             sources: self.sources,
             source_sessions: self.source_sessions,
             moments,
+            story,
             scenes: self.scenes,
             feedback: self.feedback,
             change_sets: self.change_sets,
@@ -126,4 +135,8 @@ impl ProjectWithoutMoments {
             can_redo: self.can_redo,
         }
     }
+}
+
+fn default_story_version() -> String {
+    "0".into()
 }
