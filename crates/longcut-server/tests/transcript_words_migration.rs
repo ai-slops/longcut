@@ -100,7 +100,7 @@ async fn version_seven_words_backfill_to_index_and_survive_reopen() -> TestResul
         .await?;
 
     // Then
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
     assert_eq!(rows.len(), 3);
     assert_eq!(rows[0].get::<String, _>("word_id"), "word-b");
     assert_eq!(rows[0].get::<i64, _>("ordinal"), 0);
