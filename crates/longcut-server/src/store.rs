@@ -20,9 +20,13 @@ mod migrations;
 mod moment_evidence;
 mod moments;
 pub(crate) use moments::MomentVersionKey;
+mod projects;
 mod session_records;
 mod sessions;
+mod stories;
 mod transcript_words_migration;
+pub(crate) use stories::StoryVersionKey;
+mod story_migration;
 
 #[derive(Clone)]
 pub struct Store {
@@ -49,29 +53,9 @@ impl Store {
         store.migrate_asr(path).await?;
         store.migrate_moments(path).await?;
         store.migrate_transcript_words(path).await?;
+        store.migrate_story_versions(path).await?;
         store.recover_interrupted().await?;
         Ok(store)
-    }
-
-    pub async fn list(&self) -> AppResult<Vec<ProjectSummary>> {
-        let rows = sqlx::query("SELECT state FROM projects ORDER BY updated_at DESC")
-            .fetch_all(&self.pool)
-            .await?;
-        rows.into_iter()
-            .map(|row| {
-                let project: Project = serde_json::from_str(row.try_get("state")?)?;
-                Ok(ProjectSummary {
-                    id: project.id,
-                    title: project.title,
-                    revision: project.revision,
-                    updated_at: project.updated_at,
-                })
-            })
-            .collect()
-    }
-
-    pub async fn healthy(&self) -> bool {
-        sqlx::query("SELECT 1").execute(&self.pool).await.is_ok()
     }
 
     async fn recover_interrupted(&self) -> AppResult<()> {
@@ -136,49 +120,6 @@ impl Store {
         Ok(())
     }
 
-    pub async fn get(&self, id: &str) -> AppResult<Project> {
-        let row = sqlx::query("SELECT state FROM projects WHERE id=?")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or(AppError::NotFound)?;
-        Ok(serde_json::from_str(row.try_get("state")?)?)
-    }
-
-    pub async fn create(&self, input: CreateProject) -> AppResult<Project> {
-        if input.title.trim().is_empty() || !matches!(input.frame_rate, 30 | 60) {
-            return Err(AppError::Invalid(
-                "title is required and frame_rate must be 30 or 60".into(),
-            ));
-        }
-        let project = Project {
-            id: uuid::Uuid::new_v4().to_string(),
-            title: input.title.trim().into(),
-            revision: "0".into(),
-            frame_rate: input.frame_rate,
-            updated_at: Utc::now().to_rfc3339(),
-            brief: String::new(),
-            sources: vec![],
-            source_sessions: vec![],
-            moments: vec![],
-            scenes: vec![],
-            feedback: vec![],
-            change_sets: vec![],
-            renders: vec![],
-            can_undo: false,
-            can_redo: false,
-        };
-        let history = history_snapshot::StoredHistory::empty();
-        sqlx::query("INSERT INTO projects(id,state,history,updated_at) VALUES(?,?,?,?)")
-            .bind(&project.id)
-            .bind(serde_json::to_string(&project)?)
-            .bind(serde_json::to_string(&history)?)
-            .bind(&project.updated_at)
-            .execute(&self.pool)
-            .await?;
-        Ok(project)
-    }
-
     pub async fn command(&self, id: &str, request: &CommandRequest) -> AppResult<Project> {
         let request_json = serde_json::to_string(request)?;
         let mut tx = self.pool.begin().await?;
@@ -217,6 +158,9 @@ impl Store {
         if project.revision != request.base_revision {
             return Err(AppError::Stale);
         }
+        if let Command::Story { action } = &request.command {
+            Self::validate_story_command(&mut tx, &project, action).await?;
+        }
         let timestamp = Utc::now().to_rfc3339();
         let operation = history_snapshot::HistoryOperation::from_command(&request.command);
         let mut history = stored_history
@@ -239,6 +183,7 @@ impl Store {
         project.can_undo = stored_history.can_undo();
         project.can_redo = stored_history.can_redo();
         Self::persist_moment_heads(&mut tx, &project).await?;
+        Self::persist_story_head(&mut tx, &project).await?;
         let state = serde_json::to_string(&project)?;
         let history = stored_history.json(&mut tx, id).await?;
         let result = history_snapshot::project_json(&project)?;
