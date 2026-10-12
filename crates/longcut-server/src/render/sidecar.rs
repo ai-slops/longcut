@@ -13,6 +13,8 @@ pub(super) struct Lineage<'a> {
     project_id: &'a str,
     revision: &'a str,
     frame_rate: u32,
+    story_version: Option<&'a str>,
+    story_version_url: Option<String>,
     source_sessions: Vec<LineageSession<'a>>,
     scenes: Vec<LineageScene<'a>>,
 }
@@ -41,6 +43,10 @@ struct LineageScene<'a> {
     moment_id: Option<&'a str>,
     moment_version: Option<&'a str>,
     moment_version_url: Option<String>,
+    beat_id: Option<&'a str>,
+    beat_title: Option<&'a str>,
+    chapter_id: Option<&'a str>,
+    chapter_title: Option<&'a str>,
 }
 
 pub(super) struct Sidecars {
@@ -83,6 +89,15 @@ pub(super) fn build<'a>(
     let mut scenes = Vec::new();
     let mut index = 1;
     for scene in &project.scenes {
+        let outline = scene.beat_id.as_deref().and_then(|beat_id| {
+            project.story.chapters.iter().find_map(|chapter| {
+                chapter
+                    .beats
+                    .iter()
+                    .find(|beat| beat.id == beat_id)
+                    .map(|beat| (chapter, beat))
+            })
+        });
         let length = frame(&scene.out_frame)?
             .checked_sub(frame(&scene.in_frame)?)
             .ok_or_else(|| AppError::Invalid("invalid persisted scene range".into()))?;
@@ -143,6 +158,10 @@ pub(super) fn build<'a>(
                     project.id, reference.moment_id, reference.version
                 )
             }),
+            beat_id: outline.map(|(_, beat)| beat.id.as_str()),
+            beat_title: outline.map(|(_, beat)| beat.title.as_str()),
+            chapter_id: outline.map(|(chapter, _)| chapter.id.as_str()),
+            chapter_title: outline.map(|(chapter, _)| chapter.title.as_str()),
         });
         output_frame = output_end;
     }
@@ -153,6 +172,13 @@ pub(super) fn build<'a>(
             project_id: &project.id,
             revision: &project.revision,
             frame_rate: project.frame_rate,
+            story_version: (project.story.version != "0").then_some(project.story.version.as_str()),
+            story_version_url: (project.story.version != "0").then(|| {
+                format!(
+                    "/api/v1/projects/{}/story/versions/{}",
+                    project.id, project.story.version
+                )
+            }),
             source_sessions: project
                 .source_sessions
                 .iter()
