@@ -9,7 +9,10 @@ use crate::{
     AppState,
     error::AppResult,
     media,
-    model::{CommandRequest, CreateProject, MomentVersionRecord, Project, ProjectSummary},
+    model::{
+        CommandRequest, CreateProject, MomentVersionRecord, Project, ProjectSummary,
+        StoryVersionRecord,
+    },
 };
 
 pub fn router(state: AppState) -> Router {
@@ -30,6 +33,10 @@ pub fn router(state: AppState) -> Router {
                 .route(
                     "/projects/{id}/moments/{moment_id}/versions/{version}",
                     get(moment_version),
+                )
+                .route(
+                    "/projects/{id}/story/versions/{version}",
+                    get(story_version),
                 )
                 .route(
                     "/projects/{id}/ai/runs",
@@ -110,6 +117,24 @@ pub fn router(state: AppState) -> Router {
         )
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+async fn story_version(
+    State(state): State<AppState>,
+    Path((project_id, version)): Path<(String, String)>,
+) -> AppResult<Json<StoryVersionRecord>> {
+    version
+        .parse::<u64>()
+        .map_err(|_| crate::error::AppError::Invalid("story version must be decimal".into()))?;
+    Ok(Json(
+        state
+            .store
+            .story_version(crate::store::StoryVersionKey {
+                project_id: &project_id,
+                version: &version,
+            })
+            .await?,
+    ))
 }
 
 async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
