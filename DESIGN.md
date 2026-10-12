@@ -63,7 +63,7 @@ Base unit is 4px. Tokens: `--s1` 4px, `--s2` 8px, `--s3` 12px, `--s4` 16px, `--s
 
 Editor shell: 100dvh bounded grid with fixed 52px top bar, fluid workspace, and timeline region. The workspace owns scroll; panel internals only scroll when their job is explicit. Wide layout uses a 228px source rail, fluid monitor/story area, and 292px inspector. The Agent workspace uses a 320px connection/run rail and a fluid request surface. Below 1080px the inspector becomes an in-flow lower panel. Below 760px all workspaces form a readable single column; navigation and timeline toolbars horizontally scroll rather than crushing labels. No primary content forces viewport horizontal scrolling.
 
-Geometry tokens: `--r1` 4px, `--r2` 8px, `--r3` 12px, `--agent-rail` 320px, `--agent-content` 760px. Controls use `--r1`; panels and media frames use `--r2`; home cards use `--r3`. The Agent request keeps a readable maximum measure while its rail remains compact.
+Geometry tokens: `--r1` 4px, `--r2` 8px, `--r3` 12px, `--agent-rail` 320px, `--agent-content` 760px, `--story-rail` 280px. Controls use `--r1`; panels and media frames use `--r2`; home cards use `--r3`. The Agent request keeps a readable maximum measure while its rail remains compact; Story keeps chapter navigation bounded while beat detail receives the fluid measure.
 
 ## 5. Components
 
@@ -161,6 +161,13 @@ The `/showcase` query route renders every primitive in default, selected, disabl
 - **Trust**: review is labelled editorial only, never verified ASR or synchronization. Frozen quote and transcript origin appear only when returned by the backend; commands send immutable transcript/cue/word IDs and never client-authored quotation text.
 - **Scale**: Story initially renders 40 filtered Moments and reveals 40 more per explicit action; all archived heads remain reachable.
 - **Accessibility**: copy is at least `--type-small`; action groups wrap without clipping and controls reach 44px at narrow widths or with coarse pointers. Korean and other CJK text uses `word-break: keep-all` with safe overflow wrapping.
+
+### StoryOutline / BeatDetail / SceneAssignment
+- **Structure**: a bounded chapter rail, the selected chapter's bounded beat list, and one selected entity detail surface. Scene assignment remains a separate playback-order panel; outline order never changes `Project.scenes` order.
+- **States**: empty, selected, creating, editing, stale draft, guarded deletion, advisory budget under/over target, pinned historical Moment, locked assignment, and immutable version preview.
+- **Trust**: labels distinguish advisory target frames from assigned-scene actual frames. Moment references always name their frozen version as `pinned vX`; historical preview reads the exact immutable version and never substitutes the latest head.
+- **Scale**: chapter and selected-chapter beat lists are bounded by the API caps (64 and 128). Scene rows reveal 40 at a time. Moment quotations render only inside an explicitly opened historical preview.
+- **Accessibility**: visible field labels, actionable guard explanations, CJK-safe wrapping, 12px minimum copy, and 44px controls on narrow/coarse-pointer layouts. Reordering uses deterministic earlier/later controls; no chapter or beat lock affordance is shown because that capability is not implemented.
 
 ## 6. Motion & Interaction
 
