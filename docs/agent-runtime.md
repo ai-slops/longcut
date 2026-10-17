@@ -63,10 +63,11 @@ Core connection settings:
 | `LONGCUT_AGENT_RUNTIME_TOKEN_FILE` | `LONGCUT_CODEX_TOKEN_FILE` |
 
 OpenAI-compatible configuration now belongs to the **runtime service process**, not
-the Rust core: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`,
+the Rust core: `OPENAI_API_KEY`, `OPENAI_API_BASE_URL`, `OPENAI_MODEL`,
 `OPENAI_RESPONSE_FORMAT`, `OPENAI_MAX_OUTPUT_TOKENS`, and `OPENAI_TOKEN_PARAMETER`.
-The variable names and provider selection remain compatible. Missing configuration
-rejects a compatible request before it is persisted or sampled.
+The legacy `OPENAI_BASE_URL` remains supported as a fallback; when both base URL
+variables are set, `OPENAI_API_BASE_URL` takes precedence. Missing configuration rejects
+a compatible request before it is persisted or sampled.
 
 Supply credentials through the deployment environment or its secret mechanism.
 Nonsecret configuration belongs in ordinary configuration files, not `*.env` files.
