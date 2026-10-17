@@ -6,7 +6,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{AppState, error::AppError};
 
 use super::{
-    AiProvider, AiRun, AiRunStatus, build_prompt, proposal_schema, sampling, validate_proposal,
+    AiRun, AiRunStatus, build_prompt, proposal_schema, sampling, validate_proposal,
     validate_request,
 };
 
@@ -20,9 +20,7 @@ pub async fn execute(state: AppState, run: AiRun, cancellation: CancellationToke
         Ok(Ok(())) => None,
         Ok(Err(error)) => Some(error.to_string()),
         Err(_) => {
-            if run.provider == AiProvider::Codex {
-                let _ = state.codex.cancel(&run.id).await;
-            }
+            let _result = state.agent_runtime.cancel_for(run.provider, &run.id).await;
             Some("AI run timed out after ten minutes".into())
         }
     };
@@ -70,22 +68,13 @@ async fn execute_inner(
         .transition_ai(&run.id, AiRunStatus::Generating, sample_count)
         .await?;
     let prompt = build_prompt(&project, &request, &samples)?;
-    let generation = async {
-        match request.provider {
-            AiProvider::Codex => {
-                state
-                    .codex
-                    .generate(&run.id, &prompt, proposal_schema(), &samples)
-                    .await
-            }
-            AiProvider::OpenaiCompatible => {
-                state
-                    .openai
-                    .generate(&prompt, proposal_schema(), &samples)
-                    .await
-            }
-        }
-    };
+    let generation = state.agent_runtime.generate(
+        request.provider,
+        &run.id,
+        &prompt,
+        proposal_schema(),
+        &samples,
+    );
     let proposal = tokio::select! {
         biased;
         () = cancellation.cancelled() => {
@@ -110,37 +99,50 @@ mod tests {
     use crate::{
         AppState,
         ai::{
-            AccountAction, AiProposal, AiProvider, AiRequest, AiRunStatus, AiScope, CodexClient,
-            CodexStatus, EvidenceSample,
+            AccountAction, AgentRuntimeClient, AiProposal, AiProvider, AiRequest, AiRunStatus,
+            AiScope, CodexStatus, EvidenceSample, ProvidersResponse, RuntimeInfo, RuntimeJob,
         },
         error::AppResult,
         model::{Command, CommandRequest, CreateProject, MediaStatus, Source, SourceRole},
     };
 
-    struct UnexpectedCodex;
+    struct UnexpectedRuntime;
 
     #[async_trait]
-    impl CodexClient for UnexpectedCodex {
-        async fn status(&self) -> AppResult<CodexStatus> {
-            panic!("stale runs must not contact Codex")
+    impl AgentRuntimeClient for UnexpectedRuntime {
+        async fn codex_status(&self) -> AppResult<CodexStatus> {
+            panic!("stale runs must not contact the runtime")
         }
 
         async fn account(&self, _action: AccountAction) -> AppResult<CodexStatus> {
-            panic!("stale runs must not contact Codex")
+            panic!("stale runs must not contact the runtime")
+        }
+
+        async fn providers(&self) -> AppResult<ProvidersResponse> {
+            panic!("stale runs must not contact the runtime")
+        }
+
+        async fn runtime_info(&self) -> AppResult<RuntimeInfo> {
+            panic!("stale runs must not contact the runtime")
+        }
+
+        async fn job_runtime(&self, _id: &str) -> AppResult<RuntimeJob> {
+            panic!("stale runs must not contact the runtime")
         }
 
         async fn generate(
             &self,
+            _provider: AiProvider,
             _id: &str,
             _prompt: &str,
             _schema: serde_json::Value,
             _samples: &[EvidenceSample],
         ) -> AppResult<AiProposal> {
-            panic!("stale runs must not contact Codex")
+            panic!("stale runs must not contact the runtime")
         }
 
         async fn cancel(&self, _id: &str) -> AppResult<()> {
-            panic!("stale runs must not contact Codex")
+            panic!("stale runs must not contact the runtime")
         }
     }
 
@@ -148,9 +150,10 @@ mod tests {
     async fn stale_revision_stops_before_sampling_or_context_transmission() {
         // Given
         let data = TempDir::new().expect("tempdir");
-        let state = AppState::initialize_with_codex(data.path(), Arc::new(UnexpectedCodex))
-            .await
-            .expect("state");
+        let state =
+            AppState::initialize_with_agent_runtime(data.path(), Arc::new(UnexpectedRuntime))
+                .await
+                .expect("state");
         let project = state
             .store
             .create(CreateProject {

@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use async_trait::async_trait;
 use axum::{
@@ -8,8 +11,9 @@ use axum::{
 use longcut_server::{
     AppState,
     ai::{
-        AccountAction, AiProposal, AiProvider, AiRequest, AiScope, CodexAccountState,
-        CodexAuthMode, CodexClient, CodexStatus, EvidenceSample,
+        AccountAction, AgentRuntimeClient, AiProposal, AiProvider, AiRequest, AiScope,
+        CodexAccountState, CodexAuthMode, CodexStatus, EvidenceSample, ProvidersResponse,
+        RuntimeInfo, RuntimeJob,
     },
     error::AppResult,
     model::{CreateProject, MediaStatus, Source, SourceRole},
@@ -17,11 +21,13 @@ use longcut_server::{
 use tempfile::TempDir;
 use tower::ServiceExt;
 
-struct FakeCodex;
+struct FakeRuntime {
+    cancellations: Arc<AtomicUsize>,
+}
 
 #[async_trait]
-impl CodexClient for FakeCodex {
-    async fn status(&self) -> AppResult<CodexStatus> {
+impl AgentRuntimeClient for FakeRuntime {
+    async fn codex_status(&self) -> AppResult<CodexStatus> {
         Ok(ready_status())
     }
 
@@ -29,8 +35,26 @@ impl CodexClient for FakeCodex {
         Ok(ready_status())
     }
 
+    async fn providers(&self) -> AppResult<ProvidersResponse> {
+        Ok(ProvidersResponse { providers: vec![] })
+    }
+
+    async fn runtime_info(&self) -> AppResult<RuntimeInfo> {
+        Ok(RuntimeInfo {
+            engine: "@slop-lab/part".into(),
+            version: "0.1.0".into(),
+            node_version: "24.22.0".into(),
+            protocol_version: 1,
+        })
+    }
+
+    async fn job_runtime(&self, _id: &str) -> AppResult<RuntimeJob> {
+        panic!("runtime observation is unused")
+    }
+
     async fn generate(
         &self,
+        _provider: AiProvider,
         _id: &str,
         _prompt: &str,
         _schema: serde_json::Value,
@@ -45,17 +69,24 @@ impl CodexClient for FakeCodex {
     }
 
     async fn cancel(&self, _id: &str) -> AppResult<()> {
-        panic!("OpenAI-compatible cancellation must not contact Codex")
+        self.cancellations.fetch_add(1, Ordering::SeqCst);
+        Ok(())
     }
 }
 
 #[tokio::test]
-async fn compatible_provider_cancellation_only_drops_its_local_work() {
+async fn compatible_provider_cancellation_requests_runtime_cleanup() {
     // Given
     let data = TempDir::new().expect("create temp directory");
-    let state = AppState::initialize_with_codex(data.path(), Arc::new(FakeCodex))
-        .await
-        .expect("initialize state");
+    let cancellations = Arc::new(AtomicUsize::new(0));
+    let state = AppState::initialize_with_agent_runtime(
+        data.path(),
+        Arc::new(FakeRuntime {
+            cancellations: Arc::clone(&cancellations),
+        }),
+    )
+    .await
+    .expect("initialize state");
     let project = state
         .store
         .create(CreateProject {
@@ -129,15 +160,21 @@ async fn compatible_provider_cancellation_only_drops_its_local_work() {
             .status,
         longcut_server::ai::AiRunStatus::Cancelled
     );
+    assert_eq!(cancellations.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]
 async fn codex_status_route_uses_explicit_client_boundary() {
     // Given
     let data = TempDir::new().expect("create temp directory");
-    let state = AppState::initialize_with_codex(data.path(), Arc::new(FakeCodex))
-        .await
-        .expect("initialize state");
+    let state = AppState::initialize_with_agent_runtime(
+        data.path(),
+        Arc::new(FakeRuntime {
+            cancellations: Arc::new(AtomicUsize::new(0)),
+        }),
+    )
+    .await
+    .expect("initialize state");
     // When
     let response = longcut_server::app(state)
         .oneshot(
