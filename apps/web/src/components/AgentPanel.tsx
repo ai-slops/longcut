@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { AiProvider, AiRequest, AiRun, CodexStatus, ProviderStatus } from "../ai-domain"
+import { aiApi } from "../ai-api"
+import type {
+  AiProvider,
+  AiRequest,
+  AiRun,
+  CodexStatus,
+  ProviderStatus,
+  RuntimeAvailability,
+} from "../ai-domain"
 import { isActiveRun } from "../ai-helpers"
-import { ApiError, api } from "../api"
+import { ApiError } from "../api"
 import type { Project } from "../domain"
 import { AgentConnection } from "./AgentConnection"
 import { AgentProviderSelector } from "./AgentProviderSelector"
 import { AgentRequest } from "./AgentRequest"
+import { RuntimeAvailabilityPanel } from "./RuntimeAvailabilityPanel"
 import { TrackAiRuns } from "./TrackAiRuns"
 
 type AgentPanelProps = {
@@ -17,7 +26,7 @@ type AgentPanelProps = {
 function errorMessage(reason: unknown): string {
   if (reason instanceof ApiError) return `${reason.message} [${reason.code}]`
   if (reason instanceof Error) return reason.message
-  return "An unexpected Codex request error occurred."
+  return "An unexpected agent request error occurred."
 }
 
 export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelProps) {
@@ -25,6 +34,8 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
   const [provider, setProvider] = useState<AiProvider>("codex")
   const [providers, setProviders] = useState<readonly ProviderStatus[]>([])
   const [providersLoading, setProvidersLoading] = useState(true)
+  const [runtime, setRuntime] = useState<RuntimeAvailability | null>(null)
+  const [runtimeLoading, setRuntimeLoading] = useState(true)
   const [runs, setRuns] = useState<readonly AiRun[]>([])
   const [connectionBusy, setConnectionBusy] = useState(false)
   const [runsLoading, setRunsLoading] = useState(true)
@@ -35,10 +46,26 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
   const refreshedRuns = useRef(new Set<string>())
   const providerInitialized = useRef(false)
 
+  const refreshRuntime = useCallback(async (signal: AbortSignal): Promise<void> => {
+    try {
+      setRuntime(await aiApi.runtime(signal))
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError") return
+      setRuntime({
+        available: false,
+        engine: "@slop-lab/part",
+        version: null,
+        error: "Agent runtime availability could not be checked.",
+      })
+    } finally {
+      if (!signal.aborted) setRuntimeLoading(false)
+    }
+  }, [])
+
   const refreshConnection = useCallback(async (): Promise<void> => {
     setConnectionBusy(true)
     try {
-      setConnection(await api.codexStatus())
+      setConnection(await aiApi.codexStatus())
     } catch (reason) {
       setError(errorMessage(reason))
     } finally {
@@ -47,7 +74,7 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
   }, [])
   const refreshRuns = useCallback(async (): Promise<void> => {
     try {
-      setRuns(await api.listAiRuns(project.id))
+      setRuns(await aiApi.listRuns(project.id))
       setRunsLoading(false)
     } catch (reason) {
       setError(errorMessage(reason))
@@ -56,7 +83,7 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
   }, [project.id])
   const refreshProviders = useCallback(async (): Promise<void> => {
     try {
-      const next = await api.aiProviders()
+      const next = await aiApi.providers()
       setProviders(next)
       if (!providerInitialized.current) {
         providerInitialized.current = true
@@ -72,10 +99,13 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
   }, [])
 
   useEffect(() => {
+    const controller = new AbortController()
+    void refreshRuntime(controller.signal)
     void refreshConnection()
     void refreshProviders()
     void refreshRuns()
-  }, [refreshConnection, refreshProviders, refreshRuns])
+    return () => controller.abort()
+  }, [refreshConnection, refreshProviders, refreshRuns, refreshRuntime])
   useEffect(() => {
     if (connection?.state !== "login_pending" && connection?.state !== "busy") return
     const interval = window.setInterval(() => void refreshConnection(), 2_000)
@@ -111,7 +141,7 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
     setSubmitting(true)
     setError(null)
     try {
-      const run = await api.createAiRun(project.id, request)
+      const run = await aiApi.createRun(project.id, request)
       setRuns((current) => [run, ...current.filter((item) => item.id !== run.id)])
       return true
     } catch (reason) {
@@ -126,7 +156,7 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
     setCancellingId(runId)
     setError(null)
     try {
-      const run = await api.cancelAiRun(project.id, runId)
+      const run = await aiApi.cancelRun(project.id, runId)
       setRuns((current) => current.map((item) => (item.id === run.id ? run : item)))
     } catch (reason) {
       setError(errorMessage(reason))
@@ -146,6 +176,7 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
         </div>
       ) : null}
       <aside className="agent-rail">
+        <RuntimeAvailabilityPanel status={runtime} loading={runtimeLoading} />
         <AgentProviderSelector
           provider={provider}
           providers={providers}
@@ -156,13 +187,14 @@ export function AgentPanel({ project, onRefreshProject, onReview }: AgentPanelPr
           <AgentConnection
             status={connection}
             loading={connectionBusy}
-            onLogin={() => updateConnection(api.codexLogin)}
-            onCancelLogin={() => updateConnection(api.cancelCodexLogin)}
-            onLogout={() => updateConnection(api.codexLogout)}
+            onLogin={() => updateConnection(aiApi.codexLogin)}
+            onCancelLogin={() => updateConnection(aiApi.cancelCodexLogin)}
+            onLogout={() => updateConnection(aiApi.codexLogout)}
             onRetry={refreshConnection}
           />
         ) : null}
         <TrackAiRuns
+          projectId={project.id}
           runs={runs}
           loading={runsLoading}
           cancellingId={cancellingId}
