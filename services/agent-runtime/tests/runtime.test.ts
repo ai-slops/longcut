@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseOpenAiConfig } from "../src/config.ts";
+import { openAiSettings, parseOpenAiConfig } from "../src/config.ts";
 import { JobRequestSchema } from "../src/types.ts";
 
 test("provider defaults to codex and overrides remain closed", () => {
@@ -16,18 +16,31 @@ test("provider defaults to codex and overrides remain closed", () => {
 });
 
 test("OpenAI-compatible configuration preserves the legacy request options", () => {
-  const parsed = parseOpenAiConfig({
+  const parsed = parseOpenAiConfig(openAiSettings({
     OPENAI_API_KEY: "fixture-key",
     OPENAI_BASE_URL: "https://api.example.test/v1",
     OPENAI_MODEL: "vision-fixture",
     OPENAI_RESPONSE_FORMAT: "json_schema",
     OPENAI_MAX_OUTPUT_TOKENS: "1024",
     OPENAI_TOKEN_PARAMETER: "max_completion_tokens",
-  });
+  }));
   assert.equal(parsed.kind, "configured");
   if (parsed.kind === "configured") {
     assert.equal(parsed.config.endpoint, "https://api.example.test/v1/chat/completions");
     assert.equal(parsed.config.maxOutputTokens, 1024);
+  }
+});
+
+test("OPENAI_API_BASE_URL takes precedence over OPENAI_BASE_URL", () => {
+  const parsed = parseOpenAiConfig(openAiSettings({
+    OPENAI_API_KEY: "fixture-key",
+    OPENAI_API_BASE_URL: "https://canonical.example.test/v1",
+    OPENAI_BASE_URL: "https://legacy.example.test/v1",
+    OPENAI_MODEL: "vision-fixture",
+  }));
+  assert.equal(parsed.kind, "configured");
+  if (parsed.kind === "configured") {
+    assert.equal(parsed.config.endpoint, "https://canonical.example.test/v1/chat/completions");
   }
 });
 

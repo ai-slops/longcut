@@ -14,7 +14,7 @@ type ConfigResult =
   | { readonly kind: "disabled"; readonly status: ProviderStatus };
 
 const names = [
-  "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL", "OPENAI_RESPONSE_FORMAT",
+  "OPENAI_API_KEY", "OPENAI_API_BASE_URL", "OPENAI_BASE_URL", "OPENAI_MODEL", "OPENAI_RESPONSE_FORMAT",
   "OPENAI_MAX_OUTPUT_TOKENS", "OPENAI_TOKEN_PARAMETER",
 ] as const;
 export type OpenAiSettings = Partial<Record<(typeof names)[number], string>>;
@@ -24,12 +24,12 @@ function disabled(model: string | null, endpoint: string | null, detail: string)
 }
 
 export function parseOpenAiConfig(values: OpenAiSettings): ConfigResult {
-  const base = values.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+  const base = values.OPENAI_API_BASE_URL ?? values.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
   let url: URL;
   try { url = new URL(base); }
-  catch { return disabled(null, null, "OPENAI_BASE_URL must be a valid HTTP(S) URL"); }
+  catch { return disabled(null, null, "OpenAI API base URL must be a valid HTTP(S) URL"); }
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || !url.hostname) {
-    return disabled(null, null, "OPENAI_BASE_URL must be HTTP(S) without credentials, query, or fragment");
+    return disabled(null, null, "OpenAI API base URL must be HTTP(S) without credentials, query, or fragment");
   }
   url.pathname = `${url.pathname.replace(/\/$/, "")}/chat/completions`;
   const endpoint = url.toString();
