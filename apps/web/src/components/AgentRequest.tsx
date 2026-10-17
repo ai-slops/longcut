@@ -192,13 +192,14 @@ export function AgentRequest({
                       (!sceneIds.includes(scene.id) && sceneIds.length >= MAX_AI_SCENES)
                     }
                     checked={sceneIds.includes(scene.id)}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const checked = event.currentTarget.checked
                       setSceneIds((current) =>
-                        event.currentTarget.checked
+                        checked
                           ? [...current, scene.id]
                           : current.filter((id) => id !== scene.id),
                       )
-                    }
+                    }}
                   />
                   <span>
                     <strong>{scene.title}</strong>

@@ -32,7 +32,7 @@ export function AgentRequestIntro() {
       <WandSparkles size={20} />
       <div>
         <strong>Describe the edit, not the clicks</strong>
-        <p>Codex can propose changes. It cannot apply them; you review each operation first.</p>
+        <p>The selected provider can propose changes through PART. You review each operation before applying it.</p>
       </div>
     </div>
   )
