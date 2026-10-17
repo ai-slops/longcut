@@ -1,6 +1,7 @@
 import { RotateCcw, Square, StepForward } from "lucide-react"
 import type { AiRun } from "../ai-domain"
 import { isActiveRun } from "../ai-helpers"
+import { RunRuntimeDetails } from "./RunRuntimeDetails"
 import { Badge, Button, Panel } from "./Ui"
 
 const providerNames: Record<AiRun["provider"], string> = {
@@ -9,6 +10,7 @@ const providerNames: Record<AiRun["provider"], string> = {
 }
 
 type TrackAiRunsProps = {
+  readonly projectId: string
   readonly runs: readonly AiRun[]
   readonly loading: boolean
   readonly cancellingId: string | null
@@ -25,6 +27,7 @@ function tone(status: AiRun["status"]): "neutral" | "success" | "warning" | "err
 }
 
 export function TrackAiRuns({
+  projectId,
   runs,
   loading,
   cancellingId,
@@ -80,6 +83,7 @@ export function TrackAiRuns({
               </ul>
             ) : null}
             {run.error ? <p className="error-copy">{run.error}</p> : null}
+            <RunRuntimeDetails projectId={projectId} run={run} />
             <footer>
               {isActiveRun(run) ? (
                 <Button
