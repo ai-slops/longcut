@@ -6,6 +6,18 @@ contract revision**, recorded in the explicitly condensed
 
 ## Overall finding
 
+### PART agent-runtime migration checkpoint
+
+Both Codex subscription and OpenAI-compatible proposal generation now run through
+PART 0.1.0 agents in `services/agent-runtime`. Longcut-owned adapters preserve Codex
+auth/sandbox behavior and image/schema requests unsupported by PART's bundled text
+adapters. Rust retains durable scope/evidence validation and human ChangeSet approval;
+its direct external provider executor is removed. Runtime availability and actual
+execution identity are visible separately from provider/login state. See the
+[runtime migration guide](agent-runtime.md) and
+[real-PART fixture acceptance](part-runtime-acceptance.md). No paid-provider or real
+ChatGPT inference is implied by fixture integration tests.
+
 ### Manual Chapter/Beat hierarchy checkpoint
 
 The Story workspace now has versioned Chapters and Beats, advisory frame budgets,
