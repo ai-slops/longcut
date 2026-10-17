@@ -5,7 +5,10 @@ use axum::{
     http::{Request, StatusCode},
 };
 use longcut_server::{
-    ai::{AccountAction, AiProposal, CodexStatus, EvidenceSample},
+    ai::{
+        AccountAction, AgentRuntimeClient, AiProposal, AiProvider, CodexStatus, EvidenceSample,
+        ProvidersResponse, RuntimeInfo, RuntimeJob,
+    },
     app,
     model::{Command, StoryCommand},
 };
@@ -79,9 +82,9 @@ async fn story_version_endpoint_returns_exact_immutable_snapshot() {
     .expect("update story");
 
     // When
-    let response = app(longcut_server::AppState::initialize_with_codex(
+    let response = app(longcut_server::AppState::initialize_with_agent_runtime(
         fixture.root.path(),
-        std::sync::Arc::new(TestCodex),
+        std::sync::Arc::new(TestRuntime),
     )
     .await
     .expect("state"))
@@ -106,9 +109,9 @@ async fn story_version_endpoint_returns_exact_immutable_snapshot() {
 async fn story_version_zero_has_no_synthetic_immutable_record() {
     // Given
     let fixture = fixture().await;
-    let state = longcut_server::AppState::initialize_with_codex(
+    let state = longcut_server::AppState::initialize_with_agent_runtime(
         fixture.root.path(),
-        std::sync::Arc::new(TestCodex),
+        std::sync::Arc::new(TestRuntime),
     )
     .await
     .expect("state");
@@ -130,11 +133,11 @@ async fn story_version_zero_has_no_synthetic_immutable_record() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
-struct TestCodex;
+struct TestRuntime;
 
 #[async_trait::async_trait]
-impl longcut_server::ai::CodexClient for TestCodex {
-    async fn status(&self) -> longcut_server::error::AppResult<CodexStatus> {
+impl AgentRuntimeClient for TestRuntime {
+    async fn codex_status(&self) -> longcut_server::error::AppResult<CodexStatus> {
         Err(longcut_server::error::AppError::Invalid("unused".into()))
     }
 
@@ -142,8 +145,21 @@ impl longcut_server::ai::CodexClient for TestCodex {
         Err(longcut_server::error::AppError::Invalid("unused".into()))
     }
 
+    async fn providers(&self) -> longcut_server::error::AppResult<ProvidersResponse> {
+        Err(longcut_server::error::AppError::Invalid("unused".into()))
+    }
+
+    async fn runtime_info(&self) -> longcut_server::error::AppResult<RuntimeInfo> {
+        Err(longcut_server::error::AppError::Invalid("unused".into()))
+    }
+
+    async fn job_runtime(&self, _: &str) -> longcut_server::error::AppResult<RuntimeJob> {
+        Err(longcut_server::error::AppError::Invalid("unused".into()))
+    }
+
     async fn generate(
         &self,
+        _: AiProvider,
         _: &str,
         _: &str,
         _: serde_json::Value,
