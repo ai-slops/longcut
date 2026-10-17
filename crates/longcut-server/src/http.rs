@@ -23,6 +23,7 @@ pub fn router(state: AppState) -> Router {
                 .route("/health", get(health))
                 .route("/asr/status", get(crate::asr::http::status))
                 .route("/ai/providers", get(crate::ai::http::providers))
+                .route("/ai/runtime", get(crate::ai::http::runtime))
                 .route("/codex/status", get(crate::ai::http::status))
                 .route("/codex/login", post(crate::ai::http::login))
                 .route("/codex/login/cancel", post(crate::ai::http::cancel_login))
@@ -45,6 +46,10 @@ pub fn router(state: AppState) -> Router {
                 .route(
                     "/projects/{id}/ai/runs/{run_id}/cancel",
                     post(crate::ai::http::cancel_run),
+                )
+                .route(
+                    "/projects/{id}/ai/runs/{run_id}/runtime",
+                    get(crate::ai::http::run_runtime),
                 )
                 .route(
                     "/projects/{id}/imports",

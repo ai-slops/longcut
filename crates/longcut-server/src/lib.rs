@@ -26,8 +26,7 @@ pub mod transcript;
 pub struct AppState {
     pub store: Store,
     pub artifacts: Arc<PathBuf>,
-    pub codex: Arc<dyn ai::CodexClient>,
-    pub openai: ai::OpenAiProvider,
+    pub agent_runtime: Arc<dyn ai::AgentRuntimeClient>,
     pub sessions: Arc<session_import::Service>,
     pub asr: Arc<asr::Service>,
     ai_cancellations: Arc<tokio::sync::Mutex<HashMap<String, tokio_util::sync::CancellationToken>>>,
@@ -35,27 +34,15 @@ pub struct AppState {
 
 impl AppState {
     pub async fn initialize(data: &Path) -> AppResult<Self> {
-        Self::initialize_with_providers(
-            data,
-            Arc::new(ai::HttpCodexClient::from_env()?),
-            ai::OpenAiProvider::from_env(),
-        )
-        .await
+        Self::initialize_with_agent_runtime(data, Arc::new(ai::HttpAgentRuntimeClient::from_env()?))
+            .await
     }
 
-    pub async fn initialize_with_codex(
+    pub async fn initialize_with_agent_runtime(
         data: &Path,
-        codex: Arc<dyn ai::CodexClient>,
+        agent_runtime: Arc<dyn ai::AgentRuntimeClient>,
     ) -> AppResult<Self> {
-        Self::initialize_with_providers(data, codex, ai::OpenAiProvider::disabled()).await
-    }
-
-    pub async fn initialize_with_providers(
-        data: &Path,
-        codex: Arc<dyn ai::CodexClient>,
-        openai: ai::OpenAiProvider,
-    ) -> AppResult<Self> {
-        Self::initialize_with_all(data, codex, openai, asr::AsrConfig::from_env()).await
+        Self::initialize_with_all(data, agent_runtime, asr::AsrConfig::from_env()).await
     }
 
     pub async fn initialize_with_asr_config(
@@ -64,8 +51,7 @@ impl AppState {
     ) -> AppResult<Self> {
         Self::initialize_with_all(
             data,
-            Arc::new(ai::HttpCodexClient::from_env()?),
-            ai::OpenAiProvider::disabled(),
+            Arc::new(ai::HttpAgentRuntimeClient::from_env()?),
             config,
         )
         .await
@@ -73,8 +59,7 @@ impl AppState {
 
     async fn initialize_with_all(
         data: &Path,
-        codex: Arc<dyn ai::CodexClient>,
-        openai: ai::OpenAiProvider,
+        agent_runtime: Arc<dyn ai::AgentRuntimeClient>,
         asr_config: asr::AsrConfig,
     ) -> AppResult<Self> {
         let artifacts = data.join("artifacts");
@@ -86,8 +71,7 @@ impl AppState {
         Ok(Self {
             store,
             artifacts: Arc::new(artifacts),
-            codex,
-            openai,
+            agent_runtime,
             sessions,
             asr,
             ai_cancellations: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
