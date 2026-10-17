@@ -198,6 +198,26 @@ async fn invalid_scope_is_rejected_before_a_run_is_persisted() {
     );
 }
 
+#[tokio::test]
+async fn missing_consent_is_rejected_before_a_run_is_persisted() {
+    // Given
+    let (_data, state, project) = project_with_source().await;
+    let mut request = source_request(&project.revision);
+    request.consent = false;
+    // When
+    let result = state.store.enqueue_ai(&project.id, request).await;
+    // Then
+    assert!(result.is_err());
+    assert!(
+        state
+            .store
+            .list_ai_runs(&project.id)
+            .await
+            .expect("list runs")
+            .is_empty()
+    );
+}
+
 #[test]
 fn missing_provider_defaults_to_codex_for_stored_requests_and_runs() {
     // Given

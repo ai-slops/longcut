@@ -71,12 +71,12 @@ pub struct AiRun {
     pub error: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProvidersResponse {
     pub providers: Vec<ProviderStatus>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProviderStatus {
     pub id: AiProvider,
     pub name: String,
@@ -84,6 +84,79 @@ pub struct ProviderStatus {
     pub model: Option<String>,
     pub endpoint: Option<String>,
     pub detail: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RuntimeInfo {
+    pub engine: String,
+    pub version: String,
+    pub node_version: String,
+    pub protocol_version: u8,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RuntimeMetadata {
+    pub engine: String,
+    pub engine_version: String,
+    pub execution_id: String,
+    pub profile_revision: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimePhase {
+    Admitted,
+    Provider,
+    Validating,
+    CleaningUp,
+    Terminal,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RuntimeProgress {
+    pub sequence: u64,
+    pub phase: RuntimePhase,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RuntimeError {
+    pub code: String,
+    pub message: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeJobStatus {
+    Running,
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RuntimeJob {
+    pub id: String,
+    pub status: RuntimeJobStatus,
+    pub result: Option<AiProposal>,
+    pub error: Option<RuntimeError>,
+    pub runtime: RuntimeMetadata,
+    pub progress: RuntimeProgress,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RuntimeAvailability {
+    pub available: bool,
+    pub engine: String,
+    pub version: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RunRuntimeAvailability {
+    pub run_id: String,
+    pub available: bool,
+    pub runtime: Option<RuntimeMetadata>,
+    pub progress: Option<RuntimeProgress>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
