@@ -1,0 +1,11 @@
+{
+  "network": "part-runtime-acceptance",
+  "runtime_container": "part-runtime-acceptance-runtime",
+  "core_container": "part-runtime-acceptance-core",
+  "gateway_pid_file": "/tmp/part-runtime-acceptance-gateway.pid",
+  "runtime_port": 4110,
+  "fixture_port": 4111,
+  "core_port": 4020,
+  "gateway_port": 3020,
+  "token_path": "/run/codex-link/token"
+}
