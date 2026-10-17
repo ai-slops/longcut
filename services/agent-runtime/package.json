@@ -1,0 +1,19 @@
+{
+  "name": "@longcut/agent-runtime",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": ">=24.22.0" },
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@slop-lab/part": "0.1.0",
+    "@slop-lab/part-plugins": "0.1.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": { "@types/node": "^24", "typescript": "^5.9.2" }
+}

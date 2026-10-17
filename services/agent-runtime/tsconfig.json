@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2024", "module": "NodeNext", "moduleResolution": "NodeNext",
+    "strict": true, "noUncheckedIndexedAccess": true, "exactOptionalPropertyTypes": true,
+    "erasableSyntaxOnly": true, "verbatimModuleSyntax": true, "allowImportingTsExtensions": true,
+    "noEmit": true, "noFallthroughCasesInSwitch": true, "noUnusedLocals": true,
+    "noUnusedParameters": true, "noPropertyAccessFromIndexSignature": true,
+    "types": ["node"], "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}
