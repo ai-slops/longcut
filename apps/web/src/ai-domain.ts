@@ -61,9 +61,37 @@ export const AiRunSchema = z.object({
 
 export const AiRunsSchema = z.array(AiRunSchema).max(50)
 
+export const RuntimeAvailabilitySchema = z.object({
+  available: z.boolean(),
+  engine: z.literal("@slop-lab/part"),
+  version: z.string().nullable(),
+  error: z.string().nullable(),
+})
+
+export const RuntimeMetadataSchema = z.object({
+  engine: z.literal("@slop-lab/part"),
+  engine_version: z.string().min(1),
+  execution_id: Id,
+  profile_revision: z.string().min(1),
+})
+
+export const RuntimeProgressSchema = z.object({
+  sequence: z.number().int().nonnegative(),
+  phase: z.enum(["admitted", "provider", "validating", "cleaning_up", "terminal"]),
+})
+
+export const RunRuntimeAvailabilitySchema = z.object({
+  run_id: Id,
+  available: z.boolean(),
+  runtime: RuntimeMetadataSchema.nullable(),
+  progress: RuntimeProgressSchema.nullable(),
+})
+
 export type CodexStatus = z.infer<typeof CodexStatusSchema>
 export type AiProvider = z.infer<typeof AiProviderSchema>
 export type ProviderStatus = z.infer<typeof ProviderStatusSchema>
 export type AiScope = z.infer<typeof AiScopeSchema>
 export type AiRequest = z.infer<typeof AiRequestSchema>
 export type AiRun = z.infer<typeof AiRunSchema>
+export type RuntimeAvailability = z.infer<typeof RuntimeAvailabilitySchema>
+export type RunRuntimeAvailability = z.infer<typeof RunRuntimeAvailabilitySchema>
