@@ -73,7 +73,7 @@ export function AgentProviderSelector({
             </dl>
             <p>
               {apiProvider?.detail ??
-                "Set OPENAI_API_KEY, OPENAI_MODEL, and OPENAI_BASE_URL in the server .env, then recreate only the core service."}
+                "Set OPENAI_API_KEY, OPENAI_MODEL, and OPENAI_BASE_URL in server process settings, then restart the runtime service."}
             </p>
             <p className="agent-limit">
               API usage is billed separately from a ChatGPT subscription.
