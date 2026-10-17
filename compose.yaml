@@ -11,19 +11,13 @@ services:
       LONGCUT_BIND: 0.0.0.0:4000
       LONGCUT_DATA: /data
       RUST_LOG: info
-      LONGCUT_CODEX_URL: http://codex:4100
-      LONGCUT_CODEX_TOKEN_FILE: /run/codex-link/token
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
-      OPENAI_MODEL: "${OPENAI_MODEL:-}"
-      OPENAI_RESPONSE_FORMAT: "${OPENAI_RESPONSE_FORMAT:-json_schema}"
-      OPENAI_MAX_OUTPUT_TOKENS: "${OPENAI_MAX_OUTPUT_TOKENS:-8192}"
-      OPENAI_TOKEN_PARAMETER: "${OPENAI_TOKEN_PARAMETER:-max_completion_tokens}"
+      LONGCUT_AGENT_RUNTIME_URL: http://agent-runtime:4100
+      LONGCUT_AGENT_RUNTIME_TOKEN_FILE: /run/codex-link/token
     volumes:
       - projects:/data
       - codex-link:/run/codex-link:ro
     depends_on:
-      codex:
+      agent-runtime:
         condition: service_healthy
     init: true
     stop_grace_period: 30s
@@ -32,13 +26,24 @@ services:
     cap_drop:
       - ALL
 
-  codex:
+  agent-runtime:
     platform: linux/amd64
     build:
-      context: services/codex
+      context: services/agent-runtime
       target: runtime
-    image: longcut-codex:0.155.1
+    image: longcut-agent-runtime:part-0.1.0
     restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-}"
+      OPENAI_RESPONSE_FORMAT: "${OPENAI_RESPONSE_FORMAT:-json_schema}"
+      OPENAI_MAX_OUTPUT_TOKENS: "${OPENAI_MAX_OUTPUT_TOKENS:-8192}"
+      OPENAI_TOKEN_PARAMETER: "${OPENAI_TOKEN_PARAMETER:-max_completion_tokens}"
+    networks:
+      default:
+        aliases:
+          - codex
     init: true
     read_only: true
     tmpfs:
