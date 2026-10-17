@@ -1,0 +1,76 @@
+.runtime-status,
+.run-runtime__body {
+  display: grid;
+  gap: var(--s3);
+}
+
+.runtime-status > header {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.runtime-status > p,
+.run-runtime__body > p {
+  color: var(--paper-3);
+  font-size: var(--type-small);
+  overflow-wrap: anywhere;
+}
+
+.runtime-status > .runtime-status__error,
+.run-runtime__body > .runtime-status__error {
+  color: var(--warning);
+}
+
+.run-runtime {
+  border-block: 1px solid var(--line-1);
+}
+
+.run-runtime__toggle {
+  inline-size: 100%;
+  min-block-size: calc(var(--s10) + var(--s1));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--s2) 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-2);
+  font: inherit;
+  font-size: var(--type-small);
+  cursor: pointer;
+}
+
+.run-runtime__toggle svg {
+  transition: transform var(--motion-micro);
+}
+
+.run-runtime__toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.run-runtime__toggle:focus-visible {
+  outline: 2px solid var(--lime-1);
+  outline-offset: 2px;
+}
+
+.run-runtime__body {
+  padding-block-end: var(--s3);
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .agent-request .segmented button {
+    min-block-size: 44px;
+  }
+
+  .run-runtime__toggle {
+    min-block-size: var(--s12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-runtime__toggle svg {
+    transition: none;
+  }
+}
