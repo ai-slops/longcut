@@ -5,6 +5,8 @@ import {
   AiRunSchema,
   CodexStatusSchema,
   ProviderStatusesSchema,
+  RunRuntimeAvailabilitySchema,
+  RuntimeAvailabilitySchema,
 } from "../src/ai-domain.ts"
 import { describeOperation, intervalLimit, sampledFrames } from "../src/ai-helpers.ts"
 
@@ -83,6 +85,73 @@ test("keeps an explicit API provider on a request", () => {
   })
 
   assert.equal(parsed.provider, "openai-compatible")
+})
+
+test("parses PART availability while stripping undeclared fields", () => {
+  // Given a runtime response carrying a field the browser must never retain.
+  const payload = {
+    available: true,
+    engine: "@slop-lab/part",
+    version: "0.1.0",
+    error: null,
+    token: "must-not-cross-the-boundary",
+  }
+  // When the response crosses the browser boundary.
+  const parsed = RuntimeAvailabilitySchema.parse(payload)
+  // Then only the public availability contract remains.
+  assert.equal(parsed.version, "0.1.0")
+  assert.equal("token" in parsed, false)
+})
+
+test("parses allowlisted per-run identity and progress without secret fields", () => {
+  // Given a live PART observation with an undeclared provider payload.
+  const payload = {
+    run_id: "run",
+    available: true,
+    runtime: {
+      engine: "@slop-lab/part",
+      engine_version: "0.1.0",
+      execution_id: "execution-7",
+      profile_revision: "profile-3",
+      api_key: "must-not-cross-the-boundary",
+    },
+    progress: { sequence: 4, phase: "validating", prompt: "private" },
+  }
+  // When the response crosses the browser boundary.
+  const parsed = RunRuntimeAvailabilitySchema.parse(payload)
+  // Then fixed identity and progress survive while unknown data is stripped.
+  assert.equal(parsed.runtime?.execution_id, "execution-7")
+  assert.equal(parsed.progress?.sequence, 4)
+  assert.equal("api_key" in parsed.runtime, false)
+  assert.equal("prompt" in parsed.progress, false)
+})
+
+test("rejects an unknown PART progress phase", () => {
+  // Given a phase outside the fixed public allowlist.
+  const payload = {
+    run_id: "run",
+    available: true,
+    runtime: {
+      engine: "@slop-lab/part",
+      engine_version: "0.1.0",
+      execution_id: "execution-7",
+      profile_revision: "profile-3",
+    },
+    progress: { sequence: 5, phase: "streaming_prompt" },
+  }
+  // When parsing it, then schema drift is rejected rather than rendered.
+  assert.equal(RunRuntimeAvailabilitySchema.safeParse(payload).success, false)
+})
+
+test("keeps unavailable legacy runtime observations nonfatal and empty", () => {
+  // Given a persisted run whose bounded runtime observation was evicted.
+  const payload = { run_id: "legacy-run", available: false, runtime: null, progress: null }
+  // When parsing the response.
+  const parsed = RunRuntimeAvailabilitySchema.parse(payload)
+  // Then the run remains addressable without fabricated metadata.
+  assert.equal(parsed.run_id, "legacy-run")
+  assert.equal(parsed.available, false)
+  assert.equal(parsed.runtime, null)
 })
 
 test("bounds source intervals by media duration and six hours", () => {
