@@ -4,13 +4,40 @@ A local-first editing workspace for turning long recordings into reviewed cuts.
 The first implementation follows the import, manual editing, camera composition,
 feedback, ChangeSet, and render sequence from the supplied product specification.
 
-**Status: validated initial vertical slice, not Stage 1 alpha.** The full
-roadmap includes Korean transcription, semantic moment/story analysis, OBS capture,
-long-session acceptance, and more advanced timeline operations. Those capabilities
-must not be inferred from the existence of the initial editor.
+The application agent now runs on **PART 0.1.0**. See the current
+[runtime setup and migration guide](docs/agent-runtime.md) for provider configuration,
+Node 24.22+ requirements, preserved Codex authentication, and explicit approval.
 
-See [validation evidence and remaining work](docs/validation.md) for the exact
-tested behaviors, known limitations, and next implementation packages.
+The **Agent** workspace now supports reviewable AI proposals through either
+ChatGPT-subscription Codex or an explicitly selected OpenAI-compatible API.
+See [AI editing setup and usage](docs/ai-editing.md). API credentials stay in the
+runtime's server-side environment or secret mechanism; API billing is separate from
+ChatGPT subscription usage.
+
+**Status: delivered editing vertical slice plus several alpha foundations; Stage 1
+acceptance is still outstanding.** Delivered work includes completed-session package
+ingestion, local Korean/English ASR with searchable timed transcripts, manual
+Moments/Chapters/Beats, and reviewable provider-backed proposals. Automatic semantic
+story analysis, general discontinuous/VFR mapping, measured audiovisual alignment,
+real multi-hour broadcast acceptance, and creator acceptance remain outstanding.
+
+See [current implementation status](docs/implementation-status.md) for delivered
+behavior and outstanding alpha gates. The [initial validation report](docs/validation.md)
+is retained as dated historical evidence.
+
+The [revised product design](ai_live_stream_editing_design_revised.md) is now recorded
+as an explicitly condensed repository edition. The [M0–M7 status audit](docs/implementation-status.md)
+separates target requirements from shipped behavior. The
+[exact timebase library](docs/timebase.md) underpins package and synchronization
+foundations but does not by itself establish arbitrary-media support. Capture software
+is outside the revised editor scope.
+
+Completed-session ingestion now validates producer-neutral `EditSessionPackage 0.1`
+metadata, files, hashes, stream metadata, packet extents, full decoding and bounded
+packet continuity before explicit confirmation and atomic project registration. See
+the [session contract](docs/session-contract.md), [media validation](docs/session-media.md),
+and [current implementation status](docs/implementation-status.md). This does not
+establish measured audiovisual alignment or arbitrary media reconstruction.
 
 ## Architecture
 
@@ -19,6 +46,9 @@ tested behaviors, known limitations, and next implementation packages.
 - **FFmpeg / ffprobe:** real original-media imports, derivatives and H.264/AAC output.
 - **React / TypeScript / Vite:** source, story, edit, review and deliverable workspaces.
 - **Node 24 gateway:** same-origin static UI and streaming API/media proxy.
+- **PART agent runtime (Node 24.22+):** shared proposal execution and cancellation for both providers.
+- **Codex runtime adapter:** official device login and constrained proposal generation.
+- **Compatible-provider runtime adapter:** server-configured Chat Completions with bounded SSE decoding.
 - **Persistent Docker volume:** originals, derived files and database survive restarts.
 
 See [the implementation contract](docs/implementation-contract.md) for API shapes,
@@ -56,7 +86,7 @@ when the workspace service starts; the compiled frontend must already be present
 
 ## Run on a local development machine
 
-Install Node 24 and Docker Compose. Use the same frontend commands, then:
+Install Node 24.22+ and Docker Compose. Use the same frontend commands, then:
 
 ```bash
 docker compose up -d --build
@@ -83,7 +113,11 @@ targets the local backend on port 4000; use the built gateway path inside DIM.
 
 Browser composition is approximate. An exact render is immutable and pinned to the
 revision that was queued; editing afterward does not rewrite that rendered version.
-Typed proposal review is not a claim that an LLM or ASR provider has been configured.
+To request an AI draft, open **Agent**, select the provider and source interval,
+enter an instruction, confirm the context disclosure, and request a proposal.
+Review and explicitly approve its operations before rendering. Provider configuration
+alone does not prove successful model inference. Local ASR and transcript search are
+available, but automatic transcript-grounded story analysis is not yet delivered.
 
 ## Validation
 
@@ -92,6 +126,9 @@ node --test app/gateway.test.mjs
 npx --yes pnpm@10 --dir apps/web test
 npx --yes pnpm@10 --dir apps/web typecheck
 npx --yes pnpm@10 --dir apps/web build
+npx --yes pnpm@10 --dir services/agent-runtime install --frozen-lockfile
+npx --yes pnpm@10 --dir services/agent-runtime typecheck
+npx --yes pnpm@10 --dir services/agent-runtime test
 docker build --target check -t longcut-check .
 
 # Creates an isolated synthetic project through the running, real API.
@@ -108,6 +145,8 @@ remain separate from synthetic acceptance.
 
 - Original uploaded files are managed copies, not modified in place.
 - The `longcut-projects` volume holds all projects and artifacts.
+- Codex credentials use the separate `longcut-codex-auth` volume. API credentials
+  stay in server configuration and are not passed to Codex or browser clients.
 - `docker compose stop` preserves data. **Do not run `docker compose down -v` unless
   you intend to delete project data.**
 - Stop the core before taking a filesystem-level volume backup, so SQLite and
