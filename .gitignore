@@ -11,5 +11,7 @@ target/
 playwright-report/
 test-results/
 .playwright-mcp/
-artifacts/longcut-*.png
+/artifacts/
+/apps/web/artifacts/
+/.debug-journal.md
 .longcut-data/
