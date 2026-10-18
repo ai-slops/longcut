@@ -1,7 +1,14 @@
-# Initial Vertical Slice: Validation and Remaining Work
+# Historical Initial Vertical Slice Validation
 
 Date: 2026-09-19. This report covers the first integrated increment, not completion
-of the full supplied specification or its Stage 1 alpha acceptance criteria.
+of the full supplied specification or its Stage 1 alpha acceptance criteria. It is
+retained as historical evidence and must not be read as the current feature inventory.
+
+For current delivered behavior and outstanding alpha gates, see
+[implementation status](implementation-status.md). Later feature evidence is recorded
+in [ASR validation](asr-validation.md), [timed ASR and sync validation](timed-asr-sync-validation.md),
+[Moment validation](moments-validation.md), [Story validation](story-validation.md),
+and [PART runtime acceptance](part-runtime-acceptance.md).
 
 ## Implemented and exercised
 
@@ -101,20 +108,21 @@ and a fresh independent reviewer returned PASS with no blocking findings.
 No pixel-identical reference was supplied, so no pixel-diff fidelity score is claimed.
 CJK-specific visual acceptance and assistive-technology walkthroughs remain unverified.
 
-## Not implemented or not yet proven
+## Gaps recorded at this checkpoint
 
-This list is intentionally explicit so the initial slice cannot be mistaken for
-the requested complete editing system:
+This list records the 2026-09-19 checkpoint. Later work delivered local ASR and
+transcript search, manual Moments/Chapters/Beats, completed-session ingestion, and
+declared-sync diagnostics. The current status document above supersedes those items;
+the remaining limitations below should not be generalized beyond this dated report.
 
-- Korean ASR, transcript import/edit/search and word-aligned editing.
-- Provider-backed LLM agents, semantic moments/relations, automatic story drafts,
-  silence/repetition analysis and automatic layout proposals. Current proposals are
-  manually authored typed operations, not simulated AI output.
-- Full Session/Moment/Chapter/Beat/Scene graph, generated shared API schema, and
-  comprehensive migration/snapshot/project-bundle recovery contracts.
-- Rational source/session/output time maps, VFR/discontinuity/drift correction and
-  multi-source synchronization diagnostics. This increment edits normalized 30/60
-  fps source ranges and is not a proof of full time-model correctness.
+- Automatic semantic moments/relations, automatic story drafts and
+  silence/repetition analysis were not delivered; later provider-backed proposals
+  and manual story entities do not imply those automatic capabilities.
+- The complete target Session/Moment/Chapter/Beat/Scene graph and comprehensive
+  migration/snapshot/project-bundle recovery contracts were not established.
+- General piecewise source/session/output mapping, VFR/discontinuity/drift correction
+  and measured multi-source synchronization were not established. Later exact timebase
+  and declared-sync diagnostics do not prove full audiovisual alignment.
 - General multilayer/crop/rotation/fit editing, dissolve transitions, audio stem
   mixing, arbitrary graphics and burned-in caption styling.
 - Exact-frame service, content-addressed incremental segment caching, MSE playback,
@@ -125,20 +133,18 @@ the requested complete editing system:
   manual subcompositions and branching/merge.
 - Canvas/interval-index timeline virtualization and measured 6-hour/10,000-object
   performance. The current small-project timeline uses DOM elements.
-- OBS native capture/logger, capture-package replay, domain/platform plugins.
+- Complete composition/mix/health-driven reconstruction remained unproven. Capture
+  software and producer-state replay are outside the revised editor scope.
 - External NLE export, remote reviewer authorization and multi-user collaboration.
 - Two real 3+ hour broadcasts, a 10+ minute creator-finished output, cross-OS
   acceptance and comprehensive technical/privacy QC.
 
-## Next implementation sequence
+## Historical follow-up sequence
 
-1. Establish generated schemas and full rational time/lineage model before expanding
-   persisted project semantics.
-2. Add source/transcript analysis and source synchronization diagnostics.
-3. Add incremental preview jobs and virtualized large-project timelines.
-4. Build provider-backed, constrained agent proposals on the validated command path.
-5. Add OBS capture-package ingestion and the remaining render/QC/export contracts.
-6. Run the supplied specification's real-broadcast alpha acceptance scenarios.
+The original sequence from this checkpoint has been superseded by delivered ASR,
+source-session ingestion, manual story entities, synchronization diagnostics, and the
+shared agent runtime. Use the dependency-ordered work and Stage 1 release checklist in
+[implementation status](implementation-status.md) for current planning.
 
 ## Repository connectivity and host-assisted recovery
 
